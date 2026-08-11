@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>故事整理工具：正式雲端版</title>
+  
+  <!-- 引入拖曳套件 -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+  
+  <!-- 引入 Firebase 雲端套件 (版本 8) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <style>
+    :root {
+      --past-bg: #4a2c36; 
+      --present-bg: #2c3e50; 
+      --unsorted-bg: #2d2d2d;
+      --bg-color: #121212;
+      --text-color: #e0e0e0;
+      --highlight: #f39c12;
+      --char-tag-bg: #2980b9;
+      --group-tag-bg: #27ae60;
+    }
+    
+    html, body {
+      margin: 0; padding: 0;
+      height: 100%; 
+      height: 100dvh; 
+      overflow: hidden;
+      font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; 
+      background-color: var(--bg-color); color: var(--text-color);
+    }
+    body { display: flex; flex-direction: column; }
+    
+    header { background-color: #1e1e1e; padding: 10px 15px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.5); z-index: 100; position: relative;}
+    h1 { margin: 0 0 10px 0; font-size: 16px; color: #fff; }
+    
+    /* 雲端同步指示燈 */
+    #sync-status { position: absolute; top: 12px; left: 15px; font-size: 12px; color: #f39c12; font-weight: bold;}
+    
+    .backup-controls { position: absolute; top: 8px; right: 15px; display: flex; gap: 5px; }
+    .backup-btn { background: #333; color: #ccc; border: 1px solid #555; padding: 4px 8px; border-radius: 5px; font-size: 12px; cursor: pointer; }
+    
+    #filter-bar { display: flex; gap: 10px; justify-content: center; margin-top: 5px; }
+    .filter-select { background: #222; color: #fff; border: 1px solid #555; padding: 5px 10px; border-radius: 8px; font-size: 13px; outline: none; flex: 1; max-width: 150px;}
+    
+    #workspace { display: flex; flex: 1; overflow: hidden; transition: all 0.3s;}
+    .column-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0;}
+    .column-title { text-align: center; font-size: 14px; font-weight: bold; color: #888; padding: 10px 0; background: var(--bg-color); z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2); position: sticky; top: 0;}
+    
+    .column { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 50px; -webkit-overflow-scrolling: touch;}
+    .divider { width: 2px; background: #333; }
+
+    .workspace-stacked { flex-direction: column !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch;}
+    .workspace-stacked .column-wrapper { flex: none; overflow: visible;}
+    .workspace-stacked .column { overflow: visible; flex: none;}
+    .workspace-stacked .divider { display: none; }
+
+    #unsorted-tray { height: 130px; background: #1a1a1a; border-top: 2px solid #333; display: flex; flex-direction: column; flex-shrink: 0;}
+    .tray-title { font-size: 12px; color: #888; padding: 5px 10px; background: #222; }
+    #col-unsorted { flex: 1; display: flex; gap: 10px; padding: 10px; overflow-x: auto; align-items: center; -webkit-overflow-scrolling: touch;}
+    
+    .card { padding: 10px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; user-select: none; flex-shrink: 0; position: relative; box-sizing: border-box;}
+    .card-title { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+    .card-desc { font-size: 12px; color: #bbb; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px;}
+    
+    .card-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+    .tag-badge { color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+    .tag-char { background: var(--char-tag-bg); }
+    .tag-group { background: var(--group-tag-bg); }
+
+    #col-past .card, #col-present .card { width: 100%; }
+    #col-unsorted .card { width: 160px; height: 90px; }
+
+    .past-card { background-color: var(--past-bg); border-left: 4px solid #ff6b6b; }
+    .present-card { background-color: var(--present-bg); border-right: 4px solid #4daafc; }
+    .unsorted-card { background-color: var(--unsorted-bg); border-top: 4px solid #aaa; }
+
+    .dimmed { opacity: 0.3; filter: grayscale(80%); }
+    .active-card { border-color: var(--highlight) !important; box-shadow: 0 0 15px rgba(243, 156, 18, 0.4); }
+    .linked-active { border-color: var(--highlight) !important; box-shadow: 0 0 15px rgba(243, 156, 18, 0.4); }
+
+    #action-bar { display: none; position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background: #333; padding: 8px 10px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 200; gap: 8px; white-space: nowrap;}
+    .action-btn { background: #444; color: white; border: none; padding: 8px 10px; border-radius: 12px; font-size: 13px; cursor: pointer; }
+    .action-btn.link-mode { background: var(--highlight); color: #000; font-weight: bold; animation: pulse 1.5s infinite; }
+
+    .fab { position: fixed; bottom: 150px; right: 20px; width: 50px; height: 50px; background: #4daafc; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 28px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; z-index: 100;}
+    
+    #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; }
+    .modal-content { background: #2d2d30; padding: 20px; border-radius: 15px; width: 85%; max-width: 400px; max-height: 80vh; overflow-y: auto;}
+    .input-field { width: 100%; background: #1e1e1e; border: 1px solid #555; color: #fff; padding: 10px; border-radius: 8px; box-sizing: border-box; margin-top: 10px; font-size: 14px; font-family: inherit;}
+    .btn-group { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+    .btn-group button { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;}
+    .btn-save { background: #4daafc; color: white; }
+
+    #detail-page { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 400; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch;}
+    .dp-header { padding: 15px 20px; background: #1e1e1e; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0;}
+    .dp-close { background: transparent; border: none; color: #4daafc; font-size: 16px; cursor: pointer; font-weight: bold;}
+    .dp-body { padding: 25px 20px; }
+    .dp-title { font-size: 22px; font-weight: bold; color: #fff; margin-bottom: 5px;}
+    .dp-tags { display: flex; gap: 5px; margin-bottom: 15px;}
+    .dp-desc { font-size: 14px; color: #f39c12; margin-bottom: 25px; font-style: italic; border-left: 3px solid #f39c12; padding-left: 10px;}
+    .dp-content { font-size: 15px; color: #ddd; line-height: 1.8; white-space: pre-wrap; }
+
+    #link-toast { display: none; background: var(--highlight); color: #000; text-align: center; padding: 10px; font-weight: bold; position: fixed; top: 0; width: 100%; z-index: 500;}
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+  </style>
+</head>
+<body>
+
+  <div id="link-toast">請點擊另一張卡片建立/取消連結 (點背景取消)</div>
+
+  <header id="header">
+    <div id="sync-status">☁️ 連線中...</div>
+    <h1>我的故事大綱</h1>
+    <div class="backup-controls">
+      <button class="backup-btn" onclick="exportData()">匯出</button>
+      <button class="backup-btn" onclick="document.getElementById('import-file').click()">匯入</button>
+      <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
+    </div>
+    
+    <div id="filter-bar">
+      <select id="char-filter" class="filter-select" onchange="applyFilter()">
+        <option value="">👤 角色過濾 (全部)</option>
+      </select>
+      <select id="group-filter" class="filter-select" onchange="applyFilter()">
+        <option value="">📚 群組/章節 (全部)</option>
+      </select>
+    </div>
+  </header>
+
+  <div id="workspace">
+    <div class="column-wrapper">
+      <div class="column-title">五百年前 (因)</div>
+      <div class="column" id="col-past"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="column-wrapper">
+      <div class="column-title">現在主線 (果)</div>
+      <div class="column" id="col-present"></div>
+    </div>
+  </div>
+
+  <div id="unsorted-tray">
+    <div class="tray-title">📥 靈感暫存區</div>
+    <div id="col-unsorted"></div>
+  </div>
+
+  <div class="fab" onclick="openModal()">+</div>
+
+  <div id="action-bar">
+    <button class="action-btn" onclick="openDetailPage()">📖 細節</button>
+    <button class="action-btn" id="btn-link" onclick="toggleLinkMode()">🔗 連結</button>
+    <button class="action-btn" onclick="editCard()">✏️ 編輯</button>
+    <button class="action-btn" style="background:#cc0000;" onclick="deleteCard()">🗑️</button>
+  </div>
+
+  <div id="modal">
+    <div class="modal-content">
+      <h3 id="modal-title" style="margin-top:0; color:#fff;">新增事件</h3>
+      <input type="text" id="event-title" class="input-field" placeholder="標題 (例：發現遺跡)">
+      <div style="display:flex; gap:10px;">
+        <input type="text" id="event-char-tags" class="input-field" placeholder="👤 角色 (例: 森德, 梅蒂亞)">
+        <input type="text" id="event-group-tags" class="input-field" placeholder="📚 章節 (例: 第一章)">
+      </div>
+      <textarea id="event-desc" class="input-field" style="height: 50px;" placeholder="卡片簡介 (顯示在畫面上)"></textarea>
+      <textarea id="event-detail" class="input-field" style="height: 100px;" placeholder="詳細設定內容 (僅在細節頁面顯示...)"></textarea>
+      
+      <div class="btn-group">
+        <button style="background:#555; color:white;" onclick="closeModal()">取消</button>
+        <button class="btn-save" onclick="saveEvent()">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="detail-page">
+    <div class="dp-header">
+      <button class="dp-close" onclick="closeDetailPage()">← 返回</button>
+      <button class="action-btn" onclick="editFromDetail()">✏️ 編輯此頁</button>
+    </div>
+    <div class="dp-body">
+      <div class="dp-title" id="dp-title"></div>
+      <div class="dp-tags" id="dp-tags"></div>
+      <div class="dp-desc" id="dp-desc"></div>
+      <div class="dp-content" id="dp-content"></div>
+    </div>
+  </div>
+
+  <script>
+    // --- 1. Firebase 初始化 ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6zr_Lnnywom4IMxmvN-Fu72kF-Z5zsVg",
+      authDomain: "white-room-project.firebaseapp.com",
+      databaseURL: "https://white-room-project-default-rtdb.firebaseio.com",
+      projectId: "white-room-project",
+      storageBucket: "white-room-project.firebasestorage.app",
+      messagingSenderId: "593016980081",
+      appId: "1:593016980081:web:e4e41641338053d7a251d0"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // --- 2. 系統變數 ---
+    let events = { past: [], present: [], unsorted: [] };
+    let links = [];
+    let selectedCardId = null;
+    let isLinkingMode = false;
+    let editingCardId = null;
+
+    // 備用的預設資料 (雲端如果完全沒有資料時會使用這個)
+    const defaultEvents = {
+      past: [
+        { id: 'p1', title: '靈魂魔法綁定', desc: '森德與阿那斯被靈魂魔法綁定。', detail: '這是禁忌的古老魔法。', charTags: ['森德', '阿那斯'], groupTags: ['核心背景'] },
+        { id: 'p2', title: '誤觸機關', desc: '幼年時期的森德誤觸機關，引來魔女。', detail: '造成陰影。', charTags: ['森德'], groupTags: ['童年篇'] }
+      ],
+      present: [
+        { id: 'n1', title: '生日談話', desc: '阿那斯與埃笛恩在小屋談話。', detail: '談論未來計畫。', charTags: ['阿那斯', '埃笛恩'], groupTags: ['第一章'] }
+      ],
+      unsorted: []
+    };
+    const defaultLinks = [ ['p1', 'n1'] ];
+
+    // --- 3. 從雲端載入資料 ---
+    function loadDataFromCloud() {
+      const syncStatus = document.getElementById('sync-status');
+      
+      db.ref('/').once('value').then((snapshot) => {
+        const data = snapshot.val();
+        if (data && data.events) {
+          // 雲端有資料，直接讀取
+          events = data.events;
+          events.past = events.past || [];
+          events.present = events.present || [];
+          events.unsorted = events.unsorted || [];
+          links = data.links || [];
+        } else {
+          // 雲端是空的，載入預設資料並儲存上去
+          events = { ...defaultEvents };
+          links = [ ...defaultLinks ];
+          saveData(); 
+        }
+        
+        syncStatus.innerText = '☁️ 雲端已同步';
+        syncStatus.style.color = '#27ae60';
+        
+        // 資料載入完成後，開始繪製畫面與啟動拖曳功能
+        render(); 
+        initSortable();
+
+        // (可選) 檢查單機版 localStorage 是否有更舊的資料，未來你可以隨時透過匯入功能取代。
+      }).catch(err => {
+        syncStatus.innerText = '❌ 連線失敗';
+        syncStatus.style.color = '#e74c3c';
+        alert("無法連線到雲端資料庫，請檢查您的網路狀態。");
+      });
+    }
+
+    // --- 4. 儲存資料到雲端 (取代原來的 localStorage) ---
+    function saveData() {
+      const syncStatus = document.getElementById('sync-status');
+      syncStatus.innerText = '儲存中...';
+      syncStatus.style.color = '#f39c12';
+
+      db.ref('/').set({ events: events, links: links }).then(() => {
+        syncStatus.innerText = '☁️ 雲端已同步';
+        syncStatus.style.color = '#27ae60';
+      }).catch(e => {
+        syncStatus.innerText = '❌ 儲存失敗';
+        syncStatus.style.color = '#e74c3c';
+      });
+    }
+
+    // ==========================================
+    // 下方為原有的核心操作邏輯 (完全保留，無需更改)
+    // ==========================================
+
+    function getEventData(id) {
+      return [...events.past, ...events.present, ...events.unsorted].find(ev => ev.id === id);
+    }
+
+    function updateDropdowns() {
+      const charSet = new Set();
+      const groupSet = new Set();
+      [...events.past, ...events.present, ...events.unsorted].forEach(ev => {
+        (ev.charTags || []).forEach(t => charSet.add(t));
+        (ev.groupTags || []).forEach(t => groupSet.add(t));
+      });
+
+      const charSelect = document.getElementById('char-filter');
+      const groupSelect = document.getElementById('group-filter');
+      
+      const currChar = charSelect.value;
+      const currGroup = groupSelect.value;
+
+      charSelect.innerHTML = '<option value="">👤 角色過濾 (全部)</option>';
+      groupSelect.innerHTML = '<option value="">📚 群組/章節 (全部)</option>';
+
+      Array.from(charSet).sort().forEach(tag => {
+        charSelect.innerHTML += `<option value="${tag}">${tag}</option>`;
+      });
+      Array.from(groupSet).sort().forEach(tag => {
+        groupSelect.innerHTML += `<option value="${tag}">${tag}</option>`;
+      });
+
+      charSelect.value = currChar;
+      groupSelect.value = currGroup;
+    }
+
+    function applyFilter() { render(); }
+
+    function render() {
+      updateDropdowns();
+      
+      const charFilter = document.getElementById('char-filter').value;
+      const groupFilter = document.getElementById('group-filter').value;
+      
+      const workspace = document.getElementById('workspace');
+      if (charFilter !== "" || groupFilter !== "") {
+        workspace.classList.add('workspace-stacked');
+      } else {
+        workspace.classList.remove('workspace-stacked');
+      }
+
+      const colPast = document.getElementById('col-past');
+      const colPresent = document.getElementById('col-present');
+      const colUnsorted = document.getElementById('col-unsorted');
+      
+      colPast.innerHTML = ''; colPresent.innerHTML = ''; colUnsorted.innerHTML = '';
+
+      const createCardHTML = (ev, typeClass) => {
+        let div = document.createElement('div');
+        div.className = `card ${typeClass}`;
+        div.id = ev.id;
+        
+        let charHTML = (ev.charTags || []).map(t => `<span class="tag-badge tag-char">${t}</span>`).join('');
+        let groupHTML = (ev.groupTags || []).map(t => `<span class="tag-badge tag-group">${t}</span>`).join('');
+        
+        div.innerHTML = `
+          <div class="card-title">${ev.title}</div>
+          <div class="card-desc">${ev.desc}</div>
+          <div class="card-tags">${charHTML}${groupHTML}</div>
+        `;
+        div.onclick = (e) => handleCardClick(e, ev.id);
+
+        let showChar = charFilter === "" || (ev.charTags || []).includes(charFilter);
+        let showGroup = groupFilter === "" || (ev.groupTags || []).includes(groupFilter);
+        
+        if (!(showChar && showGroup)) {
+          div.style.display = 'none';
+        }
+        return div;
+      };
+
+      events.past.forEach(ev => colPast.appendChild(createCardHTML(ev, 'past-card')));
+      events.present.forEach(ev => colPresent.appendChild(createCardHTML(ev, 'present-card')));
+      events.unsorted.forEach(ev => colUnsorted.appendChild(createCardHTML(ev, 'unsorted-card')));
+    }
+
+    function initSortable() {
+      const options = {
+        group: 'shared', 
+        animation: 150, 
+        delay: 250, 
+        delayOnTouchOnly: true, 
+        fallbackTolerance: 5, 
+        onEnd: function () { syncDataFromDOM(); }
+      };
+      new Sortable(document.getElementById('col-past'), options);
+      new Sortable(document.getElementById('col-present'), options);
+      new Sortable(document.getElementById('col-unsorted'), options);
+    }
+
+    function syncDataFromDOM() {
+      const getIds = (containerId) => Array.from(document.getElementById(containerId).children).map(el => el.id);
+      const allEvents = [...events.past, ...events.present, ...events.unsorted];
+      
+      events.past = getIds('col-past').map(id => allEvents.find(e => e.id === id));
+      events.present = getIds('col-present').map(id => allEvents.find(e => e.id === id));
+      events.unsorted = getIds('col-unsorted').map(id => allEvents.find(e => e.id === id));
+      
+      saveData(); render();
+    }
+
+    function handleCardClick(e, clickedId) {
+      e.stopPropagation(); 
+      if (isLinkingMode) {
+        if (clickedId !== selectedCardId) {
+          let linkExists = links.findIndex(l => (l[0] === selectedCardId && l[1] === clickedId) || (l[0] === clickedId && l[1] === selectedCardId));
+          if (linkExists >= 0) { links.splice(linkExists, 1); } 
+          else { links.push([selectedCardId, clickedId]); }
+          saveData();
+        }
+        exitLinkingMode();
+        highlightCard(clickedId);
+        return;
+      }
+      selectedCardId = clickedId;
+      highlightCard(clickedId);
+      document.getElementById('action-bar').style.display = 'flex';
+    }
+
+    function highlightCard(clickedId) {
+      document.querySelectorAll('.card').forEach(card => {
+        card.classList.add('dimmed');
+        card.classList.remove('active-card', 'linked-active');
+      });
+      const clickedCard = document.getElementById(clickedId);
+      if(clickedCard) {
+        clickedCard.classList.remove('dimmed');
+        clickedCard.classList.add('active-card');
+      }
+      links.forEach(link => {
+        let targetId = link[0] === clickedId ? link[1] : (link[1] === clickedId ? link[0] : null);
+        if (targetId) {
+          const target = document.getElementById(targetId);
+          if (target) { target.classList.remove('dimmed'); target.classList.add('linked-active'); }
+        }
+      });
+    }
+
+    function toggleLinkMode() {
+      isLinkingMode = true;
+      document.getElementById('btn-link').classList.add('link-mode');
+      document.getElementById('link-toast').style.display = 'block';
+      document.getElementById('action-bar').style.display = 'none';
+    }
+    function exitLinkingMode() {
+      isLinkingMode = false;
+      document.getElementById('btn-link').classList.remove('link-mode');
+      document.getElementById('link-toast').style.display = 'none';
+    }
+
+    document.body.onclick = function(e) {
+      if(e.target.closest('.card') || e.target.closest('#action-bar') || e.target.closest('#modal') || e.target.closest('.fab') || e.target.closest('.backup-controls') || e.target.closest('#detail-page') || e.target.closest('#filter-bar')) return;
+      document.querySelectorAll('.card').forEach(card => card.classList.remove('dimmed', 'active-card', 'linked-active'));
+      document.getElementById('action-bar').style.display = 'none';
+      if(isLinkingMode) exitLinkingMode();
+      selectedCardId = null;
+    }
+
+    function openDetailPage() {
+      if(!selectedCardId) return;
+      const ev = getEventData(selectedCardId);
+      document.getElementById('dp-title').innerText = ev.title;
+      
+      let charHTML = (ev.charTags || []).map(t => `<span class="tag-badge tag-char" style="font-size:12px;">${t}</span>`).join('');
+      let groupHTML = (ev.groupTags || []).map(t => `<span class="tag-badge tag-group" style="font-size:12px;">${t}</span>`).join('');
+      document.getElementById('dp-tags').innerHTML = charHTML + groupHTML;
+      
+      document.getElementById('dp-desc').innerText = ev.desc;
+      document.getElementById('dp-content').innerText = ev.detail || '尚未填寫詳細內容...';
+      
+      document.getElementById('detail-page').style.display = 'flex';
+      document.getElementById('action-bar').style.display = 'none';
+    }
+
+    function closeDetailPage() {
+      document.getElementById('detail-page').style.display = 'none';
+      document.getElementById('action-bar').style.display = 'flex';
+    }
+    
+    function editFromDetail() {
+      closeDetailPage();
+      editCard();
+    }
+
+    function openModal(isEdit = false) {
+      const modal = document.getElementById('modal');
+      const charFilter = document.getElementById('char-filter').value;
+      const groupFilter = document.getElementById('group-filter').value;
+
+      if (isEdit && selectedCardId) {
+        document.getElementById('modal-title').innerText = '編輯事件';
+        const ev = getEventData(selectedCardId);
+        document.getElementById('event-title').value = ev.title;
+        document.getElementById('event-char-tags').value = (ev.charTags || []).join(', ');
+        document.getElementById('event-group-tags').value = (ev.groupTags || []).join(', ');
+        document.getElementById('event-desc').value = ev.desc;
+        document.getElementById('event-detail').value = ev.detail;
+        editingCardId = selectedCardId;
+      } else {
+        document.getElementById('modal-title').innerText = '新增事件';
+        document.getElementById('event-title').value = '';
+        document.getElementById('event-char-tags').value = charFilter ? charFilter : '';
+        document.getElementById('event-group-tags').value = groupFilter ? groupFilter : '';
+        document.getElementById('event-desc').value = '';
+        document.getElementById('event-detail').value = '';
+        editingCardId = null;
+      }
+      modal.style.display = 'flex';
+      document.getElementById('action-bar').style.display = 'none';
+    }
+
+    function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+    function saveEvent() {
+      const title = document.getElementById('event-title').value.trim() || '未命名事件';
+      const charTags = document.getElementById('event-char-tags').value.split(/[,，]/).map(t => t.trim()).filter(t => t !== '');
+      const groupTags = document.getElementById('event-group-tags').value.split(/[,，]/).map(t => t.trim()).filter(t => t !== '');
+      const desc = document.getElementById('event-desc').value.trim();
+      const detail = document.getElementById('event-detail').value.trim();
+      
+      if (!desc && !title) { alert("請至少輸入標題或簡介！"); return; }
+
+      if (editingCardId) {
+        const ev = getEventData(editingCardId);
+        ev.title = title; ev.charTags = charTags; ev.groupTags = groupTags; ev.desc = desc; ev.detail = detail;
+      } else {
+        const newId = 'evt_' + Date.now();
+        events.unsorted.push({ id: newId, title: title, charTags: charTags, groupTags: groupTags, desc: desc, detail: detail });
+      }
+      saveData(); render(); closeModal();
+    }
+
+    function editCard() { openModal(true); }
+
+    function deleteCard() {
+      if (confirm("確定要刪除嗎？")) {
+        ['past', 'present', 'unsorted'].forEach(type => {
+          events[type] = events[type].filter(ev => ev.id !== selectedCardId);
+        });
+        links = links.filter(l => l[0] !== selectedCardId && l[1] !== selectedCardId);
+        saveData(); render();
+        document.getElementById('action-bar').style.display = 'none';
+        selectedCardId = null;
+      }
+    }
+
+    // 匯出保持原樣 (存為 .json)
+    function exportData() {
+      const dataToSave = JSON.stringify({ events: events, links: links });
+      const blob = new Blob([dataToSave], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `我的故事大綱備份_${new Date().toLocaleDateString()}.json`;
+      a.click(); URL.revokeObjectURL(url);
+    }
+
+    // 匯入時會自動儲存到雲端
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if(imported.events && imported.links) {
+            events = imported.events; links = imported.links;
+            saveData(); // 將匯入的資料推上雲端
+            render(); 
+            alert("成功匯入故事資料並已同步至雲端！");
+          } else { alert("檔案格式不正確！"); }
+        } catch(err) { alert("讀取檔案失敗！"); }
+      };
+      reader.readAsText(file);
+    }
+
+    // --- 啟動程式：呼叫載入雲端資料 ---
+    loadDataFromCloud();
+  </script>
+</body>
+</html>
