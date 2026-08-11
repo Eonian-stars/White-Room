@@ -69,6 +69,695 @@
     .tag-char { background: var(--char-tag-bg); }
     .tag-group { background: var(--group-tag-bg); }
 
+    /* 角色卡片設計 */
+    .char-card { background: #1e1e1e; border-left: 4px solid var(--char-tag-bg); width: calc(50% - 8px); height: 80px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    .char-card-title { font-size: 16px; font-weight: bold; color: #fff; text-align: center;}
+
+    #col-past .card, #col-present .card { width: 100%; }
+    #col-unsorted .card { width: 160px; height: 90px; }
+
+    .past-card { background-color: var(--past-bg); border-left: 4px solid #ff6b6b; }
+    .present-card { background-color: var(--present-bg); border-right: 4px solid #4daafc; }
+    .unsorted-card { background-color: var(--unsorted-bg); border-top: 4px solid #aaa; }
+
+    .dimmed { opacity: 0.3; filter: grayscale(80%); }
+    .active-card { border-color: var(--highlight) !important; box-shadow: 0 0 15px rgba(243, 156, 18, 0.4); }
+    .linked-active { border-color: var(--highlight) !important; box-shadow: 0 0 15px rgba(243, 156, 18, 0.4); }
+
+    /* 操作選單 */
+    #action-bar { display: none; position: fixed; bottom: 140px; left: 50%; transform: translateX(-50%); background: #333; padding: 8px 10px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 200; gap: 8px; white-space: nowrap;}
+    .action-btn { background: #444; color: white; border: none; padding: 8px 10px; border-radius: 12px; font-size: 13px; cursor: pointer; }
+    .action-btn.link-mode { background: var(--highlight); color: #000; font-weight: bold; animation: pulse 1.5s infinite; }
+
+    .fab { position: fixed; bottom: 150px; right: 20px; width: 50px; height: 50px; background: #4daafc; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 28px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; z-index: 100; transition: transform 0.3s;}
+    
+    /* 彈窗樣式 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; }
+    .modal-content { background: #2d2d30; padding: 20px; border-radius: 15px; width: 85%; max-width: 400px; max-height: 80vh; overflow-y: auto;}
+    .input-field { width: 100%; background: #1e1e1e; border: 1px solid #555; color: #fff; padding: 10px; border-radius: 8px; box-sizing: border-box; margin-top: 10px; font-size: 14px; font-family: inherit;}
+    .btn-group { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+    .btn-group button { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;}
+    
+    /* 動態設定筆記專區 */
+    .lore-item-row { background: #222; padding: 10px; border-radius: 8px; border-left: 3px solid var(--lore-color); margin-top: 10px; position: relative;}
+    .lore-delete-btn { position: absolute; top: 5px; right: 5px; background: transparent; color: #e74c3c; border: none; font-size: 16px; cursor: pointer; }
+
+    /* 細節頁面 */
+    #detail-page { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 400; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch;}
+    .dp-header { padding: 15px 20px; background: #1e1e1e; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0;}
+    .dp-close { background: transparent; border: none; color: #4daafc; font-size: 16px; cursor: pointer; font-weight: bold;}
+    .dp-body { padding: 25px 20px; }
+    .dp-title { font-size: 22px; font-weight: bold; color: #fff; margin-bottom: 5px;}
+    .dp-tags { display: flex; gap: 5px; margin-bottom: 15px;}
+    .dp-desc { font-size: 14px; color: #f39c12; margin-bottom: 20px; font-style: italic; border-left: 3px solid #f39c12; padding-left: 10px;}
+    .dp-content { font-size: 15px; color: #ddd; line-height: 1.8; white-space: pre-wrap; margin-bottom: 20px;}
+    
+    /* 細節頁面中的設定顯示 */
+    .dp-lore-section { background: #1f1429; padding: 15px; border-radius: 8px; border: 1px solid #4a235a; margin-top: 20px; }
+    .dp-lore-header { font-size: 14px; color: #d2b4de; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 5px;}
+    .lore-display-item { font-size: 14px; color: #ebdef0; line-height: 1.5; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #4a235a;}
+    .lore-display-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0;}
+    .lore-ref-tag { font-size: 11px; background: var(--highlight); color: #000; padding: 2px 6px; border-radius: 10px; margin-right: 6px; font-weight: bold;}
+
+    #link-toast { display: none; background: var(--highlight); color: #000; text-align: center; padding: 10px; font-weight: bold; position: fixed; top: 0; width: 100%; z-index: 500;}
+  </style>
+</head>
+<body>
+
+  <div id="link-toast">請點擊另一張卡片建立/取消連結 (點背景取消)</div>
+
+  <header id="header">
+    <div id="sync-status">☁️ 連線中...</div>
+    <h1>我的故事大綱</h1>
+    <div class="backup-controls">
+      <button class="backup-btn" onclick="exportData()">匯出</button>
+      <button class="backup-btn" onclick="document.getElementById('import-file').click()">匯入</button>
+      <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
+    </div>
+
+    <div id="view-tabs">
+      <button id="tab-timeline" class="tab-btn active" onclick="switchView('timeline')">⏱️ 時間線大綱</button>
+      <button id="tab-characters" class="tab-btn" onclick="switchView('characters')">👤 角色設定庫</button>
+    </div>
+    
+    <div id="filter-bar">
+      <select id="char-filter" class="filter-select" onchange="applyFilter()">
+        <option value="">👤 角色過濾 (全部)</option>
+      </select>
+      <select id="group-filter" class="filter-select" onchange="applyFilter()">
+        <option value="">📚 群組/章節 (全部)</option>
+      </select>
+    </div>
+  </header>
+
+  <div id="workspace">
+    <div class="column-wrapper">
+      <div class="column-title">五百年前 (因)</div>
+      <div class="column" id="col-past"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="column-wrapper">
+      <div class="column-title">現在主線 (果)</div>
+      <div class="column" id="col-present"></div>
+    </div>
+  </div>
+  <div id="unsorted-tray">
+    <div class="tray-title">📥 靈感暫存區</div>
+    <div id="col-unsorted"></div>
+  </div>
+
+  <div id="char-workspace"></div>
+
+  <div class="fab" onclick="openFabAction()">+</div>
+
+  <div id="action-bar">
+    <button class="action-btn" onclick="openDetailPage()">📖 細節</button>
+    <button class="action-btn" id="btn-link" onclick="toggleLinkMode()">🔗 連結</button>
+    <button class="action-btn" onclick="openEditModal()">✏️ 編輯</button>
+    <button class="action-btn" style="background:#cc0000;" onclick="deleteItem()">🗑️</button>
+  </div>
+
+  <div id="event-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 id="event-modal-title" style="margin-top:0; color:#fff;">新增事件</h3>
+      <input type="text" id="event-title" class="input-field" placeholder="標題 (例：阿那斯入宮)">
+      <div style="display:flex; gap:10px;">
+        <input type="text" id="event-char-tags" class="input-field" placeholder="👤 參與角色 (用逗號分隔)">
+        <input type="text" id="event-group-tags" class="input-field" placeholder="📚 章節 (用逗號分隔)">
+      </div>
+      <textarea id="event-desc" class="input-field" style="height: 50px;" placeholder="事件簡介 (顯示在時間線上)"></textarea>
+      <textarea id="event-detail" class="input-field" style="height: 100px;" placeholder="詳細情節內容..."></textarea>
+      
+      <div style="margin-top: 15px; border-top: 1px dashed #555; padding-top: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 13px; color: #d2b4de; font-weight: bold;">💡 設定筆記 (可指定給特定角色)</span>
+          <button onclick="addLoreRow()" style="background:#9b59b6; color:white; border:none; border-radius:4px; padding:4px 8px; font-size:12px; cursor:pointer;">+ 新增</button>
+        </div>
+        <div id="lore-list-container"></div>
+      </div>
+      
+      <div class="btn-group">
+        <button style="background:#555; color:white;" onclick="closeModal()">取消</button>
+        <button style="background:#4daafc; color:white;" onclick="saveEvent()">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="char-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 id="char-modal-title" style="margin-top:0; color:#fff;">新增角色</h3>
+      <input type="text" id="char-name" class="input-field" placeholder="角色名稱 (例：阿那斯)">
+      <textarea id="char-desc" class="input-field" style="height: 50px;" placeholder="一句話簡介 (顯示在卡片上)"></textarea>
+      <textarea id="char-detail" class="input-field" style="height: 150px;" placeholder="角色基礎設定、背景故事..."></textarea>
+      
+      <div class="btn-group">
+        <button style="background:#555; color:white;" onclick="closeModal()">取消</button>
+        <button style="background:#2980b9; color:white;" onclick="saveCharacter()">儲存角色</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="detail-page">
+    <div class="dp-header">
+      <button class="dp-close" onclick="closeDetailPage()">← 返回</button>
+      <button class="action-btn" onclick="openEditModal()">✏️ 編輯此頁</button>
+    </div>
+    <div class="dp-body">
+      <div class="dp-title" id="dp-title"></div>
+      <div class="dp-tags" id="dp-tags"></div>
+      <div class="dp-desc" id="dp-desc"></div>
+      <div class="dp-content" id="dp-content"></div>
+      
+      <div class="dp-lore-section" id="dp-lore-section" style="display:none;">
+        <div class="dp-lore-header" id="dp-lore-header">💡 相關設定筆記</div>
+        <div id="dp-lore-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6zr_Lnnywom4IMxmvN-Fu72kF-Z5zsVg",
+      authDomain: "white-room-project.firebaseapp.com",
+      databaseURL: "https://white-room-project-default-rtdb.firebaseio.com",
+      projectId: "white-room-project",
+      storageBucket: "white-room-project.firebasestorage.app",
+      messagingSenderId: "593016980081",
+      appId: "1:593016980081:web:e4e41641338053d7a251d0"
+    };
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
+    const db = firebase.database();
+
+    let events = { past: [], present: [], unsorted: [] };
+    let characters = []; 
+    let links = [];
+    
+    let selectedCardId = null; 
+    let isLinkingMode = false;
+    let editingId = null;
+    let currentView = 'timeline';
+
+    function loadDataFromCloud() {
+      const syncStatus = document.getElementById('sync-status');
+      db.ref('/').once('value').then((snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          if (data.events) {
+            ['past', 'present', 'unsorted'].forEach(type => {
+              events[type] = (data.events[type] || []).map(ev => {
+                let lores = ev.lores || [];
+                if (ev.lore && typeof ev.lore === 'string') {
+                  lores.push({ charId: '', text: ev.lore });
+                }
+                return { ...ev, lores: lores, lore: null }; 
+              });
+            });
+          }
+          if (data.characters) { characters = data.characters; }
+          links = data.links || [];
+        } else {
+          characters = [ { id: 'c_anas', name: '阿那斯', desc: '擁有特殊命運的女孩。', detail: '' } ];
+          events.past = [{ id: 'p1', title: '王宮事件', desc: '阿那斯被帶回王宮。', detail: '', charTags: ['阿那斯'], groupTags: [], lores: [{charId: 'c_anas', text: '阿那斯在此學會了宮廷禮儀。'}] }];
+          saveData(); 
+        }
+        syncStatus.innerText = '☁️ 雲端已同步'; syncStatus.style.color = '#27ae60';
+        switchView(currentView);
+        initSortable();
+      }).catch(err => {
+        syncStatus.innerText = '❌ 連線失敗'; syncStatus.style.color = '#e74c3c';
+      });
+    }
+
+    function saveData() {
+      const syncStatus = document.getElementById('sync-status');
+      syncStatus.innerText = '儲存中...'; syncStatus.style.color = '#f39c12';
+      db.ref('/').set({ events: events, characters: characters, links: links }).then(() => {
+        syncStatus.innerText = '☁️ 雲端已同步'; syncStatus.style.color = '#27ae60';
+      }).catch(e => { syncStatus.innerText = '❌ 儲存失敗'; });
+    }
+
+    function switchView(view) {
+      currentView = view;
+      document.getElementById('action-bar').style.display = 'none';
+      selectedCardId = null;
+
+      if (view === 'timeline') {
+        document.getElementById('workspace').style.display = 'flex';
+        document.getElementById('unsorted-tray').style.display = 'flex';
+        document.getElementById('filter-bar').style.display = 'flex';
+        document.getElementById('char-workspace').style.display = 'none';
+        document.getElementById('tab-timeline').classList.add('active');
+        document.getElementById('tab-characters').classList.remove('active');
+        renderTimeline();
+      } else if (view === 'characters') {
+        document.getElementById('workspace').style.display = 'none';
+        document.getElementById('unsorted-tray').style.display = 'none';
+        document.getElementById('filter-bar').style.display = 'none';
+        document.getElementById('char-workspace').style.display = 'flex';
+        document.getElementById('tab-timeline').classList.remove('active');
+        document.getElementById('tab-characters').classList.add('active');
+        renderCharacterPanel();
+      }
+    }
+
+    function renderCharacterPanel() {
+      const charWorkspace = document.getElementById('char-workspace');
+      charWorkspace.innerHTML = '';
+      
+      if (characters.length === 0) {
+        charWorkspace.innerHTML = '<div style="width:100%; text-align:center; color:#888; margin-top:30px;">尚無角色。點擊右下角「+」新增你的第一個角色！</div>';
+        return;
+      }
+
+      characters.forEach(char => {
+        let div = document.createElement('div');
+        div.className = 'card char-card';
+        div.id = char.id;
+        div.innerHTML = `
+          <div style="width:100%;">
+            <div class="char-card-title">👤 ${char.name}</div>
+            <div class="card-desc" style="text-align:center; margin:0;">${char.desc}</div>
+          </div>
+        `;
+        div.onclick = (e) => handleCardClick(e, char.id);
+        charWorkspace.appendChild(div);
+      });
+    }
+
+    // 核心修正：確保下拉選單同時抓取事件標籤與獨立角色庫
+    function updateDropdowns() {
+      const groupSet = new Set();
+      const charTagSet = new Set();
+      
+      // 1. 抓取事件中手動輸入的標籤
+      [...events.past, ...events.present, ...events.unsorted].forEach(ev => {
+        (ev.charTags || []).forEach(t => charTagSet.add(t));
+        (ev.groupTags || []).forEach(t => groupSet.add(t));
+      });
+
+      // 2. 抓取角色資料庫中建立的角色名稱
+      characters.forEach(c => {
+        if(c.name) charTagSet.add(c.name);
+      });
+
+      const charSelect = document.getElementById('char-filter');
+      const groupSelect = document.getElementById('group-filter');
+      const currChar = charSelect.value;
+      const currGroup = groupSelect.value;
+
+      charSelect.innerHTML = '<option value="">👤 參與角色過濾 (全部)</option>';
+      groupSelect.innerHTML = '<option value="">📚 群組/章節 (全部)</option>';
+
+      Array.from(charTagSet).sort().forEach(tag => { charSelect.innerHTML += `<option value="${tag}">${tag}</option>`; });
+      Array.from(groupSet).sort().forEach(tag => { groupSelect.innerHTML += `<option value="${tag}">${tag}</option>`; });
+
+      charSelect.value = currChar; groupSelect.value = currGroup;
+    }
+
+    function applyFilter() { renderTimeline(); }
+
+    function renderTimeline() {
+      updateDropdowns();
+      const charFilter = document.getElementById('char-filter').value;
+      const groupFilter = document.getElementById('group-filter').value;
+      const workspace = document.getElementById('workspace');
+      
+      if (charFilter !== "" || groupFilter !== "") workspace.classList.add('workspace-stacked');
+      else workspace.classList.remove('workspace-stacked');
+
+      ['past', 'present', 'unsorted'].forEach(type => {
+        const col = document.getElementById(`col-${type}`);
+        col.innerHTML = '';
+        events[type].forEach(ev => {
+          let div = document.createElement('div');
+          div.className = `card ${type}-card`;
+          div.id = ev.id;
+          
+          let charHTML = (ev.charTags || []).map(t => `<span class="tag-badge tag-char">${t}</span>`).join('');
+          let groupHTML = (ev.groupTags || []).map(t => `<span class="tag-badge tag-group">${t}</span>`).join('');
+          
+          div.innerHTML = `
+            <div class="card-title">${ev.title}</div>
+            <div class="card-desc">${ev.desc}</div>
+            <div class="card-tags">${charHTML}${groupHTML}</div>
+          `;
+          div.onclick = (e) => handleCardClick(e, ev.id);
+
+          // 核心修正：多重條件判斷，確保標籤與筆記關聯都能被過濾到
+          let showChar = false;
+          if (charFilter === "") {
+            showChar = true;
+          } else {
+            // 條件一：事件標籤中包含該角色
+            let hasTag = (ev.charTags || []).includes(charFilter);
+            
+            // 條件二：該事件的設定筆記中，有指定給該角色
+            let charObj = characters.find(c => c.name === charFilter);
+            let hasLore = false;
+            if (charObj) {
+              hasLore = (ev.lores || []).some(lore => lore.charId === charObj.id);
+            }
+            
+            showChar = hasTag || hasLore;
+          }
+
+          let showGroup = groupFilter === "" || (ev.groupTags || []).includes(groupFilter);
+          
+          if (!(showChar && showGroup)) div.style.display = 'none';
+          col.appendChild(div);
+        });
+      });
+    }
+
+    function initSortable() {
+      const options = { group: 'shared', animation: 150, delay: 250, delayOnTouchOnly: true, fallbackTolerance: 5, onEnd: syncDataFromDOM };
+      new Sortable(document.getElementById('col-past'), options);
+      new Sortable(document.getElementById('col-present'), options);
+      new Sortable(document.getElementById('col-unsorted'), options);
+    }
+
+    function syncDataFromDOM() {
+      const allEvents = [...events.past, ...events.present, ...events.unsorted];
+      ['past', 'present', 'unsorted'].forEach(type => {
+        const ids = Array.from(document.getElementById(`col-${type}`).children).map(el => el.id);
+        events[type] = ids.map(id => allEvents.find(e => e.id === id));
+      });
+      saveData(); switchView(currentView);
+    }
+
+    function getEventData(id) {
+      return [...events.past, ...events.present, ...events.unsorted].find(ev => ev.id === id);
+    }
+
+    function handleCardClick(e, clickedId) {
+      e.stopPropagation(); 
+      if (isLinkingMode && currentView === 'timeline') {
+        if (clickedId !== selectedCardId) {
+          let linkExists = links.findIndex(l => (l[0] === selectedCardId && l[1] === clickedId) || (l[0] === clickedId && l[1] === selectedCardId));
+          if (linkExists >= 0) links.splice(linkExists, 1); else links.push([selectedCardId, clickedId]);
+          saveData();
+        }
+        exitLinkingMode(); highlightCard(clickedId); return;
+      }
+      
+      selectedCardId = clickedId; 
+      highlightCard(clickedId);
+      
+      const actionBar = document.getElementById('action-bar');
+      actionBar.style.display = 'flex';
+      document.getElementById('btn-link').style.display = (currentView === 'timeline') ? 'inline-block' : 'none';
+    }
+
+    function highlightCard(clickedId) {
+      document.querySelectorAll('.card').forEach(card => {
+        card.classList.add('dimmed'); card.classList.remove('active-card', 'linked-active');
+      });
+      const clickedCard = document.getElementById(clickedId);
+      if(clickedCard) { clickedCard.classList.remove('dimmed'); clickedCard.classList.add('active-card'); }
+      
+      if (currentView === 'timeline') {
+        links.forEach(link => {
+          let targetId = link[0] === clickedId ? link[1] : (link[1] === clickedId ? link[0] : null);
+          if (targetId) {
+            const target = document.getElementById(targetId);
+            if (target) { target.classList.remove('dimmed'); target.classList.add('linked-active'); }
+          }
+        });
+      }
+    }
+
+    function toggleLinkMode() {
+      isLinkingMode = true; document.getElementById('btn-link').classList.add('link-mode');
+      document.getElementById('link-toast').style.display = 'block'; document.getElementById('action-bar').style.display = 'none';
+    }
+    
+    function exitLinkingMode() {
+      isLinkingMode = false; document.getElementById('btn-link').classList.remove('link-mode');
+      document.getElementById('link-toast').style.display = 'none';
+    }
+
+    document.body.onclick = function(e) {
+      if(e.target.closest('.card') || e.target.closest('#action-bar') || e.target.closest('.modal-overlay') || e.target.closest('.fab') || e.target.closest('#detail-page')) return;
+      document.querySelectorAll('.card').forEach(card => card.classList.remove('dimmed', 'active-card', 'linked-active'));
+      document.getElementById('action-bar').style.display = 'none';
+      if(isLinkingMode) exitLinkingMode();
+      selectedCardId = null;
+    }
+
+    function openDetailPage() {
+      if(!selectedCardId) return;
+      const isEvent = currentView === 'timeline';
+      const data = isEvent ? getEventData(selectedCardId) : characters.find(c => c.id === selectedCardId);
+      
+      document.getElementById('dp-title').innerText = data.name || data.title;
+      document.getElementById('dp-desc').innerText = data.desc || '無簡介';
+      document.getElementById('dp-content').innerText = data.detail || '尚未填寫詳細內容...';
+      
+      const tagsContainer = document.getElementById('dp-tags');
+      const loreSection = document.getElementById('dp-lore-section');
+      const loreContent = document.getElementById('dp-lore-content');
+      
+      if (isEvent) {
+        let charHTML = (data.charTags || []).map(t => `<span class="tag-badge tag-char" style="font-size:12px;">${t}</span>`).join('');
+        let groupHTML = (data.groupTags || []).map(t => `<span class="tag-badge tag-group" style="font-size:12px;">${t}</span>`).join('');
+        tagsContainer.innerHTML = charHTML + groupHTML;
+        
+        document.getElementById('dp-lore-header').innerHTML = '💡 包含的設定筆記';
+        loreContent.innerHTML = '';
+        if (data.lores && data.lores.length > 0) {
+          data.lores.forEach(lore => {
+            let charName = lore.charId ? (characters.find(c => c.id === lore.charId)?.name || '未指定角色') : '未指定角色';
+            loreContent.innerHTML += `<div class="lore-display-item"><span class="lore-ref-tag">👤 ${charName}</span> ${lore.text}</div>`;
+          });
+          loreSection.style.display = 'block';
+        } else { loreSection.style.display = 'none'; }
+        
+      } else {
+        tagsContainer.innerHTML = '';
+        
+        document.getElementById('dp-lore-header').innerHTML = '📌 從各事件中收集的設定';
+        loreContent.innerHTML = '';
+        let foundLores = false;
+        
+        const allEvents = [...events.past, ...events.present, ...events.unsorted];
+        allEvents.forEach(ev => {
+          (ev.lores || []).forEach(lore => {
+            if (lore.charId === data.id) {
+              foundLores = true;
+              loreContent.innerHTML += `<div class="lore-display-item"><span class="lore-ref-tag">📖 ${ev.title}</span> ${lore.text}</div>`;
+            }
+          });
+        });
+        
+        if (foundLores) loreSection.style.display = 'block';
+        else loreSection.style.display = 'none';
+      }
+      
+      document.getElementById('detail-page').style.display = 'flex';
+      document.getElementById('action-bar').style.display = 'none';
+    }
+
+    function closeDetailPage() { document.getElementById('detail-page').style.display = 'none'; }
+    
+    function openFabAction() { 
+      if (currentView === 'timeline') openEventModal(); 
+      else openCharModal(); 
+    }
+    
+    function openEditModal() { 
+      closeDetailPage(); 
+      if (currentView === 'timeline') openEventModal(true); 
+      else openCharModal(true); 
+    }
+
+    function closeModal() {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+    }
+
+    function openEventModal(isEdit = false) {
+      const modal = document.getElementById('event-modal');
+      const loreContainer = document.getElementById('lore-list-container');
+      loreContainer.innerHTML = ''; 
+
+      if (isEdit && selectedCardId) {
+        document.getElementById('event-modal-title').innerText = '編輯事件';
+        const ev = getEventData(selectedCardId);
+        document.getElementById('event-title').value = ev.title;
+        document.getElementById('event-char-tags').value = (ev.charTags || []).join(', ');
+        document.getElementById('event-group-tags').value = (ev.groupTags || []).join(', ');
+        document.getElementById('event-desc').value = ev.desc;
+        document.getElementById('event-detail').value = ev.detail;
+        
+        if (ev.lores) ev.lores.forEach(lore => addLoreRow(lore.charId, lore.text));
+        editingId = selectedCardId;
+      } else {
+        document.getElementById('event-modal-title').innerText = '新增事件';
+        document.getElementById('event-title').value = '';
+        document.getElementById('event-char-tags').value = document.getElementById('char-filter').value;
+        document.getElementById('event-group-tags').value = document.getElementById('group-filter').value;
+        document.getElementById('event-desc').value = '';
+        document.getElementById('event-detail').value = '';
+        editingId = null;
+      }
+      modal.style.display = 'flex';
+    }
+
+    function addLoreRow(selectedCharId = '', text = '') {
+      const container = document.getElementById('lore-list-container');
+      const row = document.createElement('div');
+      row.className = 'lore-item-row';
+      
+      let options = `<option value="">-- 指定關聯角色 (可不選) --</option>`;
+      characters.forEach(c => {
+        options += `<option value="${c.id}" ${selectedCharId === c.id ? 'selected' : ''}>${c.name}</option>`;
+      });
+
+      row.innerHTML = `
+        <button class="lore-delete-btn" onclick="this.parentElement.remove()" title="刪除此筆記">✖</button>
+        <select class="input-field lore-char-select" style="margin-top:0; padding:5px; margin-bottom:5px; background:#181818;">${options}</select>
+        <textarea class="input-field lore-text-input" style="height: 50px; margin-top:0;" placeholder="輸入設定細節...">${text}</textarea>
+      `;
+      container.appendChild(row);
+    }
+
+    function saveEvent() {
+      const title = document.getElementById('event-title').value.trim() || '未命名事件';
+      const charTags = document.getElementById('event-char-tags').value.split(/[,，]/).map(t => t.trim()).filter(t => t !== '');
+      const groupTags = document.getElementById('event-group-tags').value.split(/[,，]/).map(t => t.trim()).filter(t => t !== '');
+      const desc = document.getElementById('event-desc').value.trim();
+      const detail = document.getElementById('event-detail').value.trim();
+      
+      const lores = [];
+      document.querySelectorAll('.lore-item-row').forEach(row => {
+        let charId = row.querySelector('.lore-char-select').value;
+        let text = row.querySelector('.lore-text-input').value.trim();
+        if (text) lores.push({ charId: charId, text: text });
+      });
+
+      if (!desc && !title) { alert("請至少輸入標題或簡介！"); return; }
+
+      if (editingId) {
+        const ev = getEventData(editingId);
+        ev.title = title; ev.charTags = charTags; ev.groupTags = groupTags; ev.desc = desc; ev.detail = detail; ev.lores = lores;
+      } else {
+        const newId = 'evt_' + Date.now();
+        events.unsorted.push({ id: newId, title: title, charTags: charTags, groupTags: groupTags, desc: desc, detail: detail, lores: lores });
+      }
+      saveData(); switchView(currentView); closeModal();
+    }
+
+    function openCharModal(isEdit = false) {
+      const modal = document.getElementById('char-modal');
+      if (isEdit && selectedCardId) {
+        document.getElementById('char-modal-title').innerText = '編輯角色';
+        const char = characters.find(c => c.id === selectedCardId);
+        document.getElementById('char-name').value = char.name;
+        document.getElementById('char-desc').value = char.desc;
+        document.getElementById('char-detail').value = char.detail;
+        editingId = selectedCardId;
+      } else {
+        document.getElementById('char-modal-title').innerText = '新增角色';
+        document.getElementById('char-name').value = '';
+        document.getElementById('char-desc').value = '';
+        document.getElementById('char-detail').value = '';
+        editingId = null;
+      }
+      modal.style.display = 'flex';
+    }
+
+    function saveCharacter() {
+      const name = document.getElementById('char-name').value.trim() || '未命名角色';
+      const desc = document.getElementById('char-desc').value.trim();
+      const detail = document.getElementById('char-detail').value.trim();
+
+      if (editingId) {
+        const char = characters.find(c => c.id === editingId);
+        char.name = name; char.desc = desc; char.detail = detail;
+      } else {
+        characters.push({ id: 'char_' + Date.now(), name: name, desc: desc, detail: detail });
+      }
+      saveData(); switchView(currentView); closeModal();
+    }
+
+    function deleteItem() {
+      if (confirm("確定要刪除嗎？")) {
+        if (currentView === 'timeline') {
+          ['past', 'present', 'unsorted'].forEach(type => { events[type] = events[type].filter(ev => ev.id !== selectedCardId); });
+          links = links.filter(l => l[0] !== selectedCardId && l[1] !== selectedCardId);
+        } else {
+          characters = characters.filter(c => c.id !== selectedCardId);
+          ['past', 'present', 'unsorted'].forEach(type => {
+            events[type].forEach(ev => {
+              if (ev.lores) ev.lores.forEach(lore => { if (lore.charId === selectedCardId) lore.charId = ''; });
+            });
+          });
+        }
+        saveData(); switchView(currentView); document.getElementById('action-bar').style.display = 'none'; selectedCardId = null;
+      }
+    }
+
+    function exportData() {
+      const dataToSave = JSON.stringify({ events: events, characters: characters, links: links });
+      const blob = new Blob([dataToSave], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `我的故事大綱備份_${new Date().toLocaleDateString()}.json`;
+      a.click(); URL.revokeObjectURL(url);
+    }
+    function importData(event) {
+      const file = event.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if(imported.events) {
+            events = imported.events; characters = imported.characters || []; links = imported.links || [];
+            saveData(); switchView(currentView); alert("成功匯入故事資料並已同步至雲端！");
+          }
+        } catch(err) { alert("讀取檔案失敗！"); }
+      };
+      reader.readAsText(file);
+    }
+
+    loadDataFromCloud();
+  </script>
+</body>
+</html>
+    
+    #view-tabs { display: flex; justify-content: center; gap: 10px; margin-top: 10px; margin-bottom: 5px; }
+    .tab-btn { background: #333; color: #aaa; border: none; padding: 6px 15px; border-radius: 20px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+    .tab-btn.active { background: var(--highlight); color: #000; font-weight: bold; }
+
+    #filter-bar { display: flex; gap: 10px; justify-content: center; margin-top: 5px; }
+    .filter-select { background: #222; color: #fff; border: 1px solid #555; padding: 5px 10px; border-radius: 8px; font-size: 13px; outline: none; flex: 1; max-width: 150px;}
+    
+    /* 雙視圖工作區 */
+    #workspace { display: flex; flex: 1; overflow: hidden; transition: all 0.3s;}
+    #char-workspace { display: none; flex: 1; overflow-y: auto; padding: 15px; align-content: flex-start; flex-wrap: wrap; gap: 15px; -webkit-overflow-scrolling: touch; background: #181818; }
+    
+    .column-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0;}
+    .column-title { text-align: center; font-size: 14px; font-weight: bold; color: #888; padding: 10px 0; background: var(--bg-color); z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2); position: sticky; top: 0;}
+    .column { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 50px; -webkit-overflow-scrolling: touch;}
+    .divider { width: 2px; background: #333; }
+
+    .workspace-stacked { flex-direction: column !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch;}
+    .workspace-stacked .column-wrapper { flex: none; overflow: visible;}
+    .workspace-stacked .column { overflow: visible; flex: none;}
+    .workspace-stacked .divider { display: none; }
+
+    #unsorted-tray { height: 130px; background: #1a1a1a; border-top: 2px solid #333; display: flex; flex-direction: column; flex-shrink: 0;}
+    .tray-title { font-size: 12px; color: #888; padding: 5px 10px; background: #222; }
+    #col-unsorted { flex: 1; display: flex; gap: 10px; padding: 10px; overflow-x: auto; align-items: center; -webkit-overflow-scrolling: touch;}
+    
+    /* 卡片設計 */
+    .card { padding: 10px; border-radius: 8px; cursor: pointer; border: 2px solid transparent; user-select: none; flex-shrink: 0; position: relative; box-sizing: border-box;}
+    .card-title { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+    .card-desc { font-size: 12px; color: #bbb; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px;}
+    .card-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+    .tag-badge { color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+    .tag-char { background: var(--char-tag-bg); }
+    .tag-group { background: var(--group-tag-bg); }
+
     /* 角色卡片設計 (乾淨、獨立) */
     .char-card { background: #1e1e1e; border-left: 4px solid var(--char-tag-bg); width: calc(50% - 8px); height: 80px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
     .char-card-title { font-size: 16px; font-weight: bold; color: #fff; text-align: center;}
