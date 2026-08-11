@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>故事整理工具：獨立角色庫版</title>
+  <title>故事整理工具：獨立角色庫版 (修正版)</title>
   
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -440,6 +440,10 @@
       saveData(); switchView(currentView);
     }
 
+    function getEventData(id) {
+      return [...events.past, ...events.present, ...events.unsorted].find(ev => ev.id === id);
+    }
+
     // --- 4. 交互與選單邏輯 ---
     function handleCardClick(e, clickedId) {
       e.stopPropagation(); 
@@ -483,6 +487,7 @@
       isLinkingMode = true; document.getElementById('btn-link').classList.add('link-mode');
       document.getElementById('link-toast').style.display = 'block'; document.getElementById('action-bar').style.display = 'none';
     }
+    
     function exitLinkingMode() {
       isLinkingMode = false; document.getElementById('btn-link').classList.remove('link-mode');
       document.getElementById('link-toast').style.display = 'none';
@@ -521,7 +526,7 @@
         loreContent.innerHTML = '';
         if (data.lores && data.lores.length > 0) {
           data.lores.forEach(lore => {
-            let charName = lore.charId ? (characters.find(c => c.id === lore.charId)?.name || '未知角色') : '世界觀/未歸類';
+            let charName = lore.charId ? (characters.find(c => c.id === lore.charId)?.name || '未指定角色') : '未指定角色';
             loreContent.innerHTML += `<div class="lore-display-item"><span class="lore-ref-tag">👤 ${charName}</span> ${lore.text}</div>`;
           });
           loreSection.style.display = 'block';
@@ -555,8 +560,17 @@
     }
 
     function closeDetailPage() { document.getElementById('detail-page').style.display = 'none'; }
-    function openFabAction() { if (currentView === 'timeline') openEventModal(); else openCharModal(); }
-    function openEditModal() { closeDetailPage(); if (currentView === 'timeline') openEventModal(true); else openCharModal(true); }
+    
+    function openFabAction() { 
+      if (currentView === 'timeline') openEventModal(); 
+      else openCharModal(); 
+    }
+    
+    function openEditModal() { 
+      closeDetailPage(); 
+      if (currentView === 'timeline') openEventModal(true); 
+      else openCharModal(true); 
+    }
 
     function closeModal() {
       document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
