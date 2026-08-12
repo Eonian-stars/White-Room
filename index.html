@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>故事整理工具：獨立角色庫版 (修正版)</title>
+  <title>故事整理工具：內頁編輯與複選版</title>
   
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -42,7 +42,7 @@
     #filter-bar { display: flex; gap: 10px; justify-content: center; margin-top: 5px; }
     .filter-select { background: #222; color: #fff; border: 1px solid #555; padding: 5px 10px; border-radius: 8px; font-size: 13px; outline: none; flex: 1; max-width: 150px;}
     
-    /* 雙視圖工作區 */
+    /* 工作區 */
     #workspace { display: flex; flex: 1; overflow: hidden; transition: all 0.3s;}
     #char-workspace { display: none; flex: 1; overflow-y: auto; padding: 15px; align-content: flex-start; flex-wrap: wrap; gap: 15px; -webkit-overflow-scrolling: touch; background: #181818; }
     
@@ -98,13 +98,15 @@
     .btn-group { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
     .btn-group button { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;}
     
-    /* 動態設定筆記專區 */
+    /* 動態設定筆記專區 (細節頁面內) */
     .lore-item-row { background: #222; padding: 10px; border-radius: 8px; border-left: 3px solid var(--lore-color); margin-top: 10px; position: relative;}
     .lore-delete-btn { position: absolute; top: 5px; right: 5px; background: transparent; color: #e74c3c; border: none; font-size: 16px; cursor: pointer; }
+    .lore-char-checkbox-label { display: inline-flex; align-items: center; margin-right: 10px; margin-bottom: 5px; font-size: 13px; color: #ccc; cursor: pointer;}
+    .lore-char-checkbox-label input { margin-right: 4px; cursor: pointer; }
 
     /* 細節頁面 */
     #detail-page { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 400; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch;}
-    .dp-header { padding: 15px 20px; background: #1e1e1e; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0;}
+    .dp-header { padding: 15px 20px; background: #1e1e1e; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 410;}
     .dp-close { background: transparent; border: none; color: #4daafc; font-size: 16px; cursor: pointer; font-weight: bold;}
     .dp-body { padding: 25px 20px; }
     .dp-title { font-size: 22px; font-weight: bold; color: #fff; margin-bottom: 5px;}
@@ -112,7 +114,7 @@
     .dp-desc { font-size: 14px; color: #f39c12; margin-bottom: 20px; font-style: italic; border-left: 3px solid #f39c12; padding-left: 10px;}
     .dp-content { font-size: 15px; color: #ddd; line-height: 1.8; white-space: pre-wrap; margin-bottom: 20px;}
     
-    /* 細節頁面中的設定顯示 */
+    /* 細節頁面中的設定顯示與編輯 */
     .dp-lore-section { background: #1f1429; padding: 15px; border-radius: 8px; border: 1px solid #4a235a; margin-top: 20px; }
     .dp-lore-header { font-size: 14px; color: #d2b4de; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 5px;}
     .lore-display-item { font-size: 14px; color: #ebdef0; line-height: 1.5; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #4a235a;}
@@ -135,6 +137,7 @@
       <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
     </div>
 
+    <!-- 視圖切換按鈕 -->
     <div id="view-tabs">
       <button id="tab-timeline" class="tab-btn active" onclick="switchView('timeline')">⏱️ 時間線大綱</button>
       <button id="tab-characters" class="tab-btn" onclick="switchView('characters')">👤 角色設定庫</button>
@@ -150,6 +153,7 @@
     </div>
   </header>
 
+  <!-- 工作區 1：時間線 -->
   <div id="workspace">
     <div class="column-wrapper">
       <div class="column-title">五百年前 (因)</div>
@@ -166,17 +170,20 @@
     <div id="col-unsorted"></div>
   </div>
 
+  <!-- 工作區 2：角色設定庫 -->
   <div id="char-workspace"></div>
 
   <div class="fab" onclick="openFabAction()">+</div>
 
+  <!-- 操作選單 -->
   <div id="action-bar">
     <button class="action-btn" onclick="openDetailPage()">📖 細節</button>
     <button class="action-btn" id="btn-link" onclick="toggleLinkMode()">🔗 連結</button>
-    <button class="action-btn" onclick="openEditModal()">✏️ 編輯</button>
+    <button class="action-btn" onclick="openEditModal()">✏️ 編輯基本資料</button>
     <button class="action-btn" style="background:#cc0000;" onclick="deleteItem()">🗑️</button>
   </div>
 
+  <!-- 彈窗 1：事件編輯 (瘦身版：移除設定筆記) -->
   <div id="event-modal" class="modal-overlay">
     <div class="modal-content">
       <h3 id="event-modal-title" style="margin-top:0; color:#fff;">新增事件</h3>
@@ -186,15 +193,7 @@
         <input type="text" id="event-group-tags" class="input-field" placeholder="📚 章節 (用逗號分隔)">
       </div>
       <textarea id="event-desc" class="input-field" style="height: 50px;" placeholder="事件簡介 (顯示在時間線上)"></textarea>
-      <textarea id="event-detail" class="input-field" style="height: 100px;" placeholder="詳細情節內容..."></textarea>
-      
-      <div style="margin-top: 15px; border-top: 1px dashed #555; padding-top: 10px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 13px; color: #d2b4de; font-weight: bold;">💡 設定筆記 (可指定給特定角色)</span>
-          <button onclick="addLoreRow()" style="background:#9b59b6; color:white; border:none; border-radius:4px; padding:4px 8px; font-size:12px; cursor:pointer;">+ 新增</button>
-        </div>
-        <div id="lore-list-container"></div>
-      </div>
+      <textarea id="event-detail" class="input-field" style="height: 150px;" placeholder="詳細情節內容..."></textarea>
       
       <div class="btn-group">
         <button style="background:#555; color:white;" onclick="closeModal()">取消</button>
@@ -203,6 +202,7 @@
     </div>
   </div>
 
+  <!-- 彈窗 2：角色編輯 -->
   <div id="char-modal" class="modal-overlay">
     <div class="modal-content">
       <h3 id="char-modal-title" style="margin-top:0; color:#fff;">新增角色</h3>
@@ -217,10 +217,11 @@
     </div>
   </div>
 
+  <!-- 獨立細節閱讀/編輯頁面 -->
   <div id="detail-page">
     <div class="dp-header">
       <button class="dp-close" onclick="closeDetailPage()">← 返回</button>
-      <button class="action-btn" onclick="openEditModal()">✏️ 編輯此頁</button>
+      <button class="action-btn" id="btn-edit-detail" onclick="openEditModal()">✏️ 編輯基本資料</button>
     </div>
     <div class="dp-body">
       <div class="dp-title" id="dp-title"></div>
@@ -228,14 +229,26 @@
       <div class="dp-desc" id="dp-desc"></div>
       <div class="dp-content" id="dp-content"></div>
       
-      <div class="dp-lore-section" id="dp-lore-section" style="display:none;">
-        <div class="dp-lore-header" id="dp-lore-header">💡 相關設定筆記</div>
-        <div id="dp-lore-content"></div>
+      <!-- 事件模式專用：可編輯的設定筆記區塊 -->
+      <div class="dp-lore-section" id="dp-lore-editor-section" style="display:none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:10px;">
+          <span style="font-size: 14px; color: #d2b4de; font-weight: bold;">💡 相關設定筆記 (可複選關聯角色)</span>
+          <button onclick="addDetailLoreRow()" style="background:#9b59b6; color:white; border:none; border-radius:4px; padding:4px 8px; font-size:12px; cursor:pointer;">+ 新增</button>
+        </div>
+        <div id="dp-lore-list"></div>
+        <button id="btn-save-lores" onclick="manualSaveLores()" style="width:100%; background:#4a235a; color:white; border:none; border-radius:6px; padding:8px; margin-top:10px; font-weight:bold; cursor:pointer; transition: 0.3s;">💾 儲存筆記變更</button>
+      </div>
+
+      <!-- 角色模式專用：唯讀的設定展示區塊 -->
+      <div class="dp-lore-section" id="dp-lore-viewer-section" style="display:none;">
+        <div class="dp-lore-header" id="dp-lore-header">📌 從各事件中收集的設定</div>
+        <div id="dp-lore-viewer-content"></div>
       </div>
     </div>
   </div>
 
   <script>
+    // --- 1. Firebase 初始化 ---
     const firebaseConfig = {
       apiKey: "AIzaSyC6zr_Lnnywom4IMxmvN-Fu72kF-Z5zsVg",
       authDomain: "white-room-project.firebaseapp.com",
@@ -257,6 +270,7 @@
     let editingId = null;
     let currentView = 'timeline';
 
+    // --- 2. 雲端資料載入與相容性處理 ---
     function loadDataFromCloud() {
       const syncStatus = document.getElementById('sync-status');
       db.ref('/').once('value').then((snapshot) => {
@@ -266,9 +280,15 @@
             ['past', 'present', 'unsorted'].forEach(type => {
               events[type] = (data.events[type] || []).map(ev => {
                 let lores = ev.lores || [];
+                // 相容性升級：將舊的單一 charId 轉換為 charIds 複選陣列
                 if (ev.lore && typeof ev.lore === 'string') {
-                  lores.push({ charId: '', text: ev.lore });
+                  lores.push({ charIds: [], text: ev.lore });
                 }
+                lores = lores.map(l => {
+                  let cIds = l.charIds || [];
+                  if (l.charId && !cIds.includes(l.charId)) cIds.push(l.charId);
+                  return { charIds: cIds, text: l.text };
+                });
                 return { ...ev, lores: lores, lore: null }; 
               });
             });
@@ -277,7 +297,7 @@
           links = data.links || [];
         } else {
           characters = [ { id: 'c_anas', name: '阿那斯', desc: '擁有特殊命運的女孩。', detail: '' } ];
-          events.past = [{ id: 'p1', title: '王宮事件', desc: '阿那斯被帶回王宮。', detail: '', charTags: ['阿那斯'], groupTags: [], lores: [{charId: 'c_anas', text: '阿那斯在此學會了宮廷禮儀。'}] }];
+          events.past = [{ id: 'p1', title: '王宮事件', desc: '阿那斯被帶回王宮。', detail: '', charTags: ['阿那斯'], groupTags: [], lores: [{charIds: ['c_anas'], text: '阿那斯在此學會了宮廷禮儀。'}] }];
           saveData(); 
         }
         syncStatus.innerText = '☁️ 雲端已同步'; syncStatus.style.color = '#27ae60';
@@ -296,6 +316,7 @@
       }).catch(e => { syncStatus.innerText = '❌ 儲存失敗'; });
     }
 
+    // --- 3. 視圖切換與畫面渲染 ---
     function switchView(view) {
       currentView = view;
       document.getElementById('action-bar').style.display = 'none';
@@ -344,18 +365,16 @@
       });
     }
 
-    // 核心修正：確保下拉選單同時抓取事件標籤與獨立角色庫
+    // 保留了完整下拉選單雙向抓取功能
     function updateDropdowns() {
       const groupSet = new Set();
       const charTagSet = new Set();
       
-      // 1. 抓取事件中手動輸入的標籤
       [...events.past, ...events.present, ...events.unsorted].forEach(ev => {
         (ev.charTags || []).forEach(t => charTagSet.add(t));
         (ev.groupTags || []).forEach(t => groupSet.add(t));
       });
 
-      // 2. 抓取角色資料庫中建立的角色名稱
       characters.forEach(c => {
         if(c.name) charTagSet.add(c.name);
       });
@@ -403,27 +422,23 @@
           `;
           div.onclick = (e) => handleCardClick(e, ev.id);
 
-          // 核心修正：多重條件判斷，確保標籤與筆記關聯都能被過濾到
+          // 深度關聯篩選 (相容新版 charIds 陣列)
           let showChar = false;
           if (charFilter === "") {
             showChar = true;
           } else {
-            // 條件一：事件標籤中包含該角色
             let hasTag = (ev.charTags || []).includes(charFilter);
-            
-            // 條件二：該事件的設定筆記中，有指定給該角色
             let charObj = characters.find(c => c.name === charFilter);
             let hasLore = false;
             if (charObj) {
-              hasLore = (ev.lores || []).some(lore => lore.charId === charObj.id);
+              hasLore = (ev.lores || []).some(lore => (lore.charIds || []).includes(charObj.id));
             }
-            
             showChar = hasTag || hasLore;
           }
 
           let showGroup = groupFilter === "" || (ev.groupTags || []).includes(groupFilter);
-          
           if (!(showChar && showGroup)) div.style.display = 'none';
+          
           col.appendChild(div);
         });
       });
@@ -504,6 +519,7 @@
       selectedCardId = null;
     }
 
+    // --- 5. 細節內頁與筆記編輯系統 ---
     function openDetailPage() {
       if(!selectedCardId) return;
       const isEvent = currentView === 'timeline';
@@ -514,50 +530,110 @@
       document.getElementById('dp-content').innerText = data.detail || '尚未填寫詳細內容...';
       
       const tagsContainer = document.getElementById('dp-tags');
-      const loreSection = document.getElementById('dp-lore-section');
-      const loreContent = document.getElementById('dp-lore-content');
+      const loreEditorSection = document.getElementById('dp-lore-editor-section');
+      const loreViewerSection = document.getElementById('dp-lore-viewer-section');
       
       if (isEvent) {
         let charHTML = (data.charTags || []).map(t => `<span class="tag-badge tag-char" style="font-size:12px;">${t}</span>`).join('');
         let groupHTML = (data.groupTags || []).map(t => `<span class="tag-badge tag-group" style="font-size:12px;">${t}</span>`).join('');
         tagsContainer.innerHTML = charHTML + groupHTML;
         
-        document.getElementById('dp-lore-header').innerHTML = '💡 包含的設定筆記';
-        loreContent.innerHTML = '';
-        if (data.lores && data.lores.length > 0) {
-          data.lores.forEach(lore => {
-            let charName = lore.charId ? (characters.find(c => c.id === lore.charId)?.name || '未指定角色') : '未指定角色';
-            loreContent.innerHTML += `<div class="lore-display-item"><span class="lore-ref-tag">👤 ${charName}</span> ${lore.text}</div>`;
-          });
-          loreSection.style.display = 'block';
-        } else { loreSection.style.display = 'none'; }
+        // 進入事件頁面：開啟設定筆記編輯區
+        loreViewerSection.style.display = 'none';
+        loreEditorSection.style.display = 'block';
         
+        const loreList = document.getElementById('dp-lore-list');
+        loreList.innerHTML = '';
+        if (data.lores) {
+          data.lores.forEach(lore => addDetailLoreRow(lore));
+        }
       } else {
         tagsContainer.innerHTML = '';
         
-        document.getElementById('dp-lore-header').innerHTML = '📌 從各事件中收集的設定';
+        // 進入角色頁面：開啟設定筆記展示區
+        loreEditorSection.style.display = 'none';
+        const loreContent = document.getElementById('dp-lore-viewer-content');
         loreContent.innerHTML = '';
         let foundLores = false;
         
         const allEvents = [...events.past, ...events.present, ...events.unsorted];
         allEvents.forEach(ev => {
           (ev.lores || []).forEach(lore => {
-            if (lore.charId === data.id) {
+            if ((lore.charIds || []).includes(data.id)) {
               foundLores = true;
               loreContent.innerHTML += `<div class="lore-display-item"><span class="lore-ref-tag">📖 ${ev.title}</span> ${lore.text}</div>`;
             }
           });
         });
         
-        if (foundLores) loreSection.style.display = 'block';
-        else loreSection.style.display = 'none';
+        if (foundLores) loreViewerSection.style.display = 'block';
+        else loreViewerSection.style.display = 'none';
       }
       
       document.getElementById('detail-page').style.display = 'flex';
       document.getElementById('action-bar').style.display = 'none';
     }
 
-    function closeDetailPage() { document.getElementById('detail-page').style.display = 'none'; }
+    // 內頁動態新增一條設定筆記 (包含複選按鈕)
+    function addDetailLoreRow(lore = { charIds: [], text: '' }) {
+      const container = document.getElementById('dp-lore-list');
+      const row = document.createElement('div');
+      row.className = 'lore-item-row';
+      
+      // 生成角色複選框
+      let checkboxHTML = characters.map(c => {
+        let checked = (lore.charIds || []).includes(c.id) ? 'checked' : '';
+        return `
+          <label class="lore-char-checkbox-label">
+            <input type="checkbox" value="${c.id}" class="lore-char-cb" ${checked}> ${c.name}
+          </label>
+        `;
+      }).join('');
+
+      row.innerHTML = `
+        <button class="lore-delete-btn" onclick="this.parentElement.remove()" title="刪除此筆記">✖</button>
+        <div style="margin-bottom:6px; color:#d2b4de; font-size:12px;">選擇關聯角色：</div>
+        <div style="display:flex; flex-wrap:wrap; margin-bottom:8px;">${checkboxHTML}</div>
+        <textarea class="input-field lore-text-input" style="height: 60px; margin-top:0;" placeholder="輸入設定細節...">${lore.text}</textarea>
+      `;
+      container.appendChild(row);
+    }
+
+    // 儲存內頁的所有筆記變更
+    function saveLoresFromDetail() {
+      if (!selectedCardId || currentView !== 'timeline') return;
+      const ev = getEventData(selectedCardId);
+      if(!ev) return;
+      
+      const lores = [];
+      document.querySelectorAll('#dp-lore-list .lore-item-row').forEach(row => {
+        const charIds = Array.from(row.querySelectorAll('.lore-char-cb:checked')).map(cb => cb.value);
+        const text = row.querySelector('.lore-text-input').value.trim();
+        if (text) lores.push({ charIds: charIds, text: text });
+      });
+      
+      ev.lores = lores;
+      saveData();
+    }
+
+    // 手動點擊儲存按鈕的視覺回饋
+    function manualSaveLores() {
+      saveLoresFromDetail();
+      const btn = document.getElementById('btn-save-lores');
+      btn.innerText = '✅ 已儲存';
+      btn.style.background = '#27ae60';
+      setTimeout(() => {
+        btn.innerText = '💾 儲存筆記變更';
+        btn.style.background = '#4a235a';
+      }, 2000);
+    }
+
+    // 離開細節頁面時，全自動存檔防呆
+    function closeDetailPage() { 
+      if(currentView === 'timeline') saveLoresFromDetail(); 
+      document.getElementById('detail-page').style.display = 'none';
+      document.getElementById('action-bar').style.display = 'flex';
+    }
     
     function openFabAction() { 
       if (currentView === 'timeline') openEventModal(); 
@@ -565,7 +641,7 @@
     }
     
     function openEditModal() { 
-      closeDetailPage(); 
+      closeDetailPage(); // 關閉細節頁前會觸發自動存檔
       if (currentView === 'timeline') openEventModal(true); 
       else openCharModal(true); 
     }
@@ -574,21 +650,17 @@
       document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
     }
 
+    // --- 6. 事件基本資料編輯 (移除筆記功能) ---
     function openEventModal(isEdit = false) {
       const modal = document.getElementById('event-modal');
-      const loreContainer = document.getElementById('lore-list-container');
-      loreContainer.innerHTML = ''; 
-
       if (isEdit && selectedCardId) {
-        document.getElementById('event-modal-title').innerText = '編輯事件';
+        document.getElementById('event-modal-title').innerText = '編輯事件基本資料';
         const ev = getEventData(selectedCardId);
         document.getElementById('event-title').value = ev.title;
         document.getElementById('event-char-tags').value = (ev.charTags || []).join(', ');
         document.getElementById('event-group-tags').value = (ev.groupTags || []).join(', ');
         document.getElementById('event-desc').value = ev.desc;
         document.getElementById('event-detail').value = ev.detail;
-        
-        if (ev.lores) ev.lores.forEach(lore => addLoreRow(lore.charId, lore.text));
         editingId = selectedCardId;
       } else {
         document.getElementById('event-modal-title').innerText = '新增事件';
@@ -602,24 +674,6 @@
       modal.style.display = 'flex';
     }
 
-    function addLoreRow(selectedCharId = '', text = '') {
-      const container = document.getElementById('lore-list-container');
-      const row = document.createElement('div');
-      row.className = 'lore-item-row';
-      
-      let options = `<option value="">-- 指定關聯角色 (可不選) --</option>`;
-      characters.forEach(c => {
-        options += `<option value="${c.id}" ${selectedCharId === c.id ? 'selected' : ''}>${c.name}</option>`;
-      });
-
-      row.innerHTML = `
-        <button class="lore-delete-btn" onclick="this.parentElement.remove()" title="刪除此筆記">✖</button>
-        <select class="input-field lore-char-select" style="margin-top:0; padding:5px; margin-bottom:5px; background:#181818;">${options}</select>
-        <textarea class="input-field lore-text-input" style="height: 50px; margin-top:0;" placeholder="輸入設定細節...">${text}</textarea>
-      `;
-      container.appendChild(row);
-    }
-
     function saveEvent() {
       const title = document.getElementById('event-title').value.trim() || '未命名事件';
       const charTags = document.getElementById('event-char-tags').value.split(/[,，]/).map(t => t.trim()).filter(t => t !== '');
@@ -627,25 +681,20 @@
       const desc = document.getElementById('event-desc').value.trim();
       const detail = document.getElementById('event-detail').value.trim();
       
-      const lores = [];
-      document.querySelectorAll('.lore-item-row').forEach(row => {
-        let charId = row.querySelector('.lore-char-select').value;
-        let text = row.querySelector('.lore-text-input').value.trim();
-        if (text) lores.push({ charId: charId, text: text });
-      });
-
       if (!desc && !title) { alert("請至少輸入標題或簡介！"); return; }
 
       if (editingId) {
         const ev = getEventData(editingId);
-        ev.title = title; ev.charTags = charTags; ev.groupTags = groupTags; ev.desc = desc; ev.detail = detail; ev.lores = lores;
+        ev.title = title; ev.charTags = charTags; ev.groupTags = groupTags; ev.desc = desc; ev.detail = detail; 
+        // 筆記 (lores) 現在在細節頁面獨立處理，所以這裡不需要覆蓋它
       } else {
         const newId = 'evt_' + Date.now();
-        events.unsorted.push({ id: newId, title: title, charTags: charTags, groupTags: groupTags, desc: desc, detail: detail, lores: lores });
+        events.unsorted.push({ id: newId, title: title, charTags: charTags, groupTags: groupTags, desc: desc, detail: detail, lores: [] });
       }
       saveData(); switchView(currentView); closeModal();
     }
 
+    // --- 7. 角色編輯邏輯 ---
     function openCharModal(isEdit = false) {
       const modal = document.getElementById('char-modal');
       if (isEdit && selectedCardId) {
@@ -686,9 +735,14 @@
           links = links.filter(l => l[0] !== selectedCardId && l[1] !== selectedCardId);
         } else {
           characters = characters.filter(c => c.id !== selectedCardId);
+          // 角色刪除時，自動從所有事件筆記的複選清單中移除他的 ID
           ['past', 'present', 'unsorted'].forEach(type => {
             events[type].forEach(ev => {
-              if (ev.lores) ev.lores.forEach(lore => { if (lore.charId === selectedCardId) lore.charId = ''; });
+              if (ev.lores) {
+                ev.lores.forEach(lore => {
+                  if (lore.charIds) lore.charIds = lore.charIds.filter(id => id !== selectedCardId);
+                });
+              }
             });
           });
         }
