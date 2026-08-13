@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>故事整理工具：內頁編輯與複選版</title>
+  <title>故事整理工具：世界觀擴充版</title>
   
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -19,6 +19,7 @@
       --highlight: #f39c12;
       --char-tag-bg: #2980b9;
       --group-tag-bg: #27ae60;
+      --world-tag-bg: #d35400; /* 世界觀專屬顏色 */
       --lore-color: #9b59b6;
     }
     
@@ -35,8 +36,9 @@
     .backup-controls { position: absolute; top: 8px; right: 15px; display: flex; gap: 5px; }
     .backup-btn { background: #333; color: #ccc; border: 1px solid #555; padding: 4px 8px; border-radius: 5px; font-size: 12px; cursor: pointer; }
     
-    #view-tabs { display: flex; justify-content: center; gap: 10px; margin-top: 10px; margin-bottom: 5px; }
-    .tab-btn { background: #333; color: #aaa; border: none; padding: 6px 15px; border-radius: 20px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+    /* 三視圖切換按鈕 */
+    #view-tabs { display: flex; justify-content: center; gap: 8px; margin-top: 10px; margin-bottom: 5px; }
+    .tab-btn { background: #333; color: #aaa; border: none; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-size: 13px; transition: all 0.2s; white-space: nowrap;}
     .tab-btn.active { background: var(--highlight); color: #000; font-weight: bold; }
 
     #filter-bar { display: flex; gap: 10px; justify-content: center; margin-top: 5px; }
@@ -44,7 +46,7 @@
     
     /* 工作區 */
     #workspace { display: flex; flex: 1; overflow: hidden; transition: all 0.3s;}
-    #char-workspace { display: none; flex: 1; overflow-y: auto; padding: 15px; align-content: flex-start; flex-wrap: wrap; gap: 15px; -webkit-overflow-scrolling: touch; background: #181818; }
+    #char-workspace, #world-workspace { display: none; flex: 1; overflow-y: auto; padding: 15px; align-content: flex-start; flex-wrap: wrap; gap: 15px; -webkit-overflow-scrolling: touch; background: #181818; }
     
     .column-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0;}
     .column-title { text-align: center; font-size: 14px; font-weight: bold; color: #888; padding: 10px 0; background: var(--bg-color); z-index: 10; box-shadow: 0 2px 5px rgba(0,0,0,0.2); position: sticky; top: 0;}
@@ -69,9 +71,11 @@
     .tag-char { background: var(--char-tag-bg); }
     .tag-group { background: var(--group-tag-bg); }
 
-    /* 角色卡片設計 */
-    .char-card { background: #1e1e1e; border-left: 4px solid var(--char-tag-bg); width: calc(50% - 8px); height: 80px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
-    .char-card-title { font-size: 16px; font-weight: bold; color: #fff; text-align: center;}
+    /* 角色與世界觀卡片設計 */
+    .entity-card { background: #1e1e1e; width: calc(50% - 8px); height: 80px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    .char-card { border-left: 4px solid var(--char-tag-bg); }
+    .world-card { border-left: 4px solid var(--world-tag-bg); }
+    .entity-card-title { font-size: 16px; font-weight: bold; color: #fff; text-align: center;}
 
     #col-past .card, #col-present .card { width: 100%; }
     #col-unsorted .card { width: 160px; height: 90px; }
@@ -92,7 +96,7 @@
     .fab { position: fixed; bottom: 150px; right: 20px; width: 50px; height: 50px; background: #4daafc; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 28px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; z-index: 100; transition: transform 0.3s;}
     
     /* 彈窗樣式 */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 500; justify-content: center; align-items: center; }
     .modal-content { background: #2d2d30; padding: 20px; border-radius: 15px; width: 85%; max-width: 400px; max-height: 80vh; overflow-y: auto;}
     .input-field { width: 100%; background: #1e1e1e; border: 1px solid #555; color: #fff; padding: 10px; border-radius: 8px; box-sizing: border-box; margin-top: 10px; font-size: 14px; font-family: inherit;}
     .btn-group { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
@@ -101,8 +105,10 @@
     /* 動態設定筆記專區 (細節頁面內) */
     .lore-item-row { background: #222; padding: 10px; border-radius: 8px; border-left: 3px solid var(--lore-color); margin-top: 10px; position: relative;}
     .lore-delete-btn { position: absolute; top: 5px; right: 5px; background: transparent; color: #e74c3c; border: none; font-size: 16px; cursor: pointer; }
-    .lore-char-checkbox-label { display: inline-flex; align-items: center; margin-right: 10px; margin-bottom: 5px; font-size: 13px; color: #ccc; cursor: pointer;}
-    .lore-char-checkbox-label input { margin-right: 4px; cursor: pointer; }
+    .lore-checkbox-group { margin-bottom: 6px; padding: 5px; background: rgba(0,0,0,0.2); border-radius: 4px; }
+    .lore-checkbox-title { font-size: 11px; color: #aaa; margin-bottom: 4px; }
+    .lore-checkbox-label { display: inline-flex; align-items: center; margin-right: 10px; margin-bottom: 4px; font-size: 12px; color: #ccc; cursor: pointer;}
+    .lore-checkbox-label input { margin-right: 4px; cursor: pointer; }
 
     /* 細節頁面 */
     #detail-page { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 400; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch;}
@@ -120,8 +126,9 @@
     .lore-display-item { font-size: 14px; color: #ebdef0; line-height: 1.5; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #4a235a;}
     .lore-display-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0;}
     .lore-ref-tag { font-size: 11px; background: var(--highlight); color: #000; padding: 2px 6px; border-radius: 10px; margin-right: 6px; font-weight: bold;}
+    .lore-ref-tag-world { background: var(--world-tag-bg); color: #fff; }
 
-    #link-toast { display: none; background: var(--highlight); color: #000; text-align: center; padding: 10px; font-weight: bold; position: fixed; top: 0; width: 100%; z-index: 500;}
+    #link-toast { display: none; background: var(--highlight); color: #000; text-align: center; padding: 10px; font-weight: bold; position: fixed; top: 0; width: 100%; z-index: 600;}
   </style>
 </head>
 <body>
@@ -137,10 +144,11 @@
       <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
     </div>
 
-    <!-- 視圖切換按鈕 -->
+    <!-- 三視圖切換按鈕 -->
     <div id="view-tabs">
       <button id="tab-timeline" class="tab-btn active" onclick="switchView('timeline')">⏱️ 時間線大綱</button>
       <button id="tab-characters" class="tab-btn" onclick="switchView('characters')">👤 角色設定庫</button>
+      <button id="tab-worlds" class="tab-btn" onclick="switchView('worlds')">🌍 世界觀設定</button>
     </div>
     
     <div id="filter-bar">
@@ -172,6 +180,9 @@
 
   <!-- 工作區 2：角色設定庫 -->
   <div id="char-workspace"></div>
+  
+  <!-- 工作區 3：世界觀設定庫 -->
+  <div id="world-workspace"></div>
 
   <div class="fab" onclick="openFabAction()">+</div>
 
@@ -183,7 +194,7 @@
     <button class="action-btn" style="background:#cc0000;" onclick="deleteItem()">🗑️</button>
   </div>
 
-  <!-- 彈窗 1：事件編輯 (瘦身版：移除設定筆記) -->
+  <!-- 彈窗 1：事件編輯 -->
   <div id="event-modal" class="modal-overlay">
     <div class="modal-content">
       <h3 id="event-modal-title" style="margin-top:0; color:#fff;">新增事件</h3>
@@ -212,7 +223,22 @@
       
       <div class="btn-group">
         <button style="background:#555; color:white;" onclick="closeModal()">取消</button>
-        <button style="background:#2980b9; color:white;" onclick="saveCharacter()">儲存角色</button>
+        <button style="background:#2980b9; color:white;" onclick="saveCharacter()">儲存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 彈窗 3：世界觀編輯 -->
+  <div id="world-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 id="world-modal-title" style="margin-top:0; color:#fff;">新增世界觀</h3>
+      <input type="text" id="world-name" class="input-field" placeholder="名詞名稱 (例：靈魂魔法、王宮)">
+      <textarea id="world-desc" class="input-field" style="height: 50px;" placeholder="一句話簡介 (顯示在卡片上)"></textarea>
+      <textarea id="world-detail" class="input-field" style="height: 150px;" placeholder="詳細設定、歷史淵源..."></textarea>
+      
+      <div class="btn-group">
+        <button style="background:#555; color:white;" onclick="closeModal()">取消</button>
+        <button style="background:#d35400; color:white;" onclick="saveWorld()">儲存</button>
       </div>
     </div>
   </div>
@@ -232,14 +258,14 @@
       <!-- 事件模式專用：可編輯的設定筆記區塊 -->
       <div class="dp-lore-section" id="dp-lore-editor-section" style="display:none;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:10px;">
-          <span style="font-size: 14px; color: #d2b4de; font-weight: bold;">💡 相關設定筆記 (可複選關聯角色)</span>
-          <button onclick="addDetailLoreRow()" style="background:#9b59b6; color:white; border:none; border-radius:4px; padding:4px 8px; font-size:12px; cursor:pointer;">+ 新增</button>
+          <span style="font-size: 14px; color: #d2b4de; font-weight: bold;">💡 相關設定筆記 (可多重勾選分配)</span>
+          <button onclick="addDetailLoreRow()" style="background:#9b59b6; color:white; border:none; border-radius:4px; padding:4px 8px; font-size:12px; cursor:pointer;">+ 新增筆記</button>
         </div>
         <div id="dp-lore-list"></div>
         <button id="btn-save-lores" onclick="manualSaveLores()" style="width:100%; background:#4a235a; color:white; border:none; border-radius:6px; padding:8px; margin-top:10px; font-weight:bold; cursor:pointer; transition: 0.3s;">💾 儲存筆記變更</button>
       </div>
 
-      <!-- 角色模式專用：唯讀的設定展示區塊 -->
+      <!-- 角色/世界觀模式專用：唯讀的設定展示區塊 -->
       <div class="dp-lore-section" id="dp-lore-viewer-section" style="display:none;">
         <div class="dp-lore-header" id="dp-lore-header">📌 從各事件中收集的設定</div>
         <div id="dp-lore-viewer-content"></div>
@@ -263,6 +289,7 @@
 
     let events = { past: [], present: [], unsorted: [] };
     let characters = []; 
+    let worlds = []; // 新增世界觀陣列
     let links = [];
     
     let selectedCardId = null; 
@@ -280,24 +307,25 @@
             ['past', 'present', 'unsorted'].forEach(type => {
               events[type] = (data.events[type] || []).map(ev => {
                 let lores = ev.lores || [];
-                // 相容性升級：將舊的單一 charId 轉換為 charIds 複選陣列
-                if (ev.lore && typeof ev.lore === 'string') {
-                  lores.push({ charIds: [], text: ev.lore });
-                }
+                // 相容性升級：補齊 worldIds 陣列
                 lores = lores.map(l => {
                   let cIds = l.charIds || [];
+                  let wIds = l.worldIds || [];
                   if (l.charId && !cIds.includes(l.charId)) cIds.push(l.charId);
-                  return { charIds: cIds, text: l.text };
+                  return { charIds: cIds, worldIds: wIds, text: l.text };
                 });
                 return { ...ev, lores: lores, lore: null }; 
               });
             });
           }
-          if (data.characters) { characters = data.characters; }
+          if (data.characters) characters = data.characters;
+          if (data.worlds) worlds = data.worlds;
           links = data.links || [];
         } else {
+          // 預設資料
           characters = [ { id: 'c_anas', name: '阿那斯', desc: '擁有特殊命運的女孩。', detail: '' } ];
-          events.past = [{ id: 'p1', title: '王宮事件', desc: '阿那斯被帶回王宮。', detail: '', charTags: ['阿那斯'], groupTags: [], lores: [{charIds: ['c_anas'], text: '阿那斯在此學會了宮廷禮儀。'}] }];
+          worlds = [ { id: 'w_magic', name: '靈魂魔法', desc: '古老的禁忌。', detail: '' } ];
+          events.past = [{ id: 'p1', title: '王宮事件', desc: '阿那斯被帶回王宮。', detail: '', charTags: ['阿那斯'], groupTags: [], lores: [{charIds: ['c_anas'], worldIds: [], text: '阿那斯在此學會了宮廷禮儀。'}] }];
           saveData(); 
         }
         syncStatus.innerText = '☁️ 雲端已同步'; syncStatus.style.color = '#27ae60';
@@ -311,7 +339,7 @@
     function saveData() {
       const syncStatus = document.getElementById('sync-status');
       syncStatus.innerText = '儲存中...'; syncStatus.style.color = '#f39c12';
-      db.ref('/').set({ events: events, characters: characters, links: links }).then(() => {
+      db.ref('/').set({ events: events, characters: characters, worlds: worlds, links: links }).then(() => {
         syncStatus.innerText = '☁️ 雲端已同步'; syncStatus.style.color = '#27ae60';
       }).catch(e => { syncStatus.innerText = '❌ 儲存失敗'; });
     }
@@ -322,50 +350,60 @@
       document.getElementById('action-bar').style.display = 'none';
       selectedCardId = null;
 
+      document.getElementById('workspace').style.display = 'none';
+      document.getElementById('unsorted-tray').style.display = 'none';
+      document.getElementById('filter-bar').style.display = 'none';
+      document.getElementById('char-workspace').style.display = 'none';
+      document.getElementById('world-workspace').style.display = 'none';
+      
+      document.getElementById('tab-timeline').classList.remove('active');
+      document.getElementById('tab-characters').classList.remove('active');
+      document.getElementById('tab-worlds').classList.remove('active');
+
       if (view === 'timeline') {
         document.getElementById('workspace').style.display = 'flex';
         document.getElementById('unsorted-tray').style.display = 'flex';
         document.getElementById('filter-bar').style.display = 'flex';
-        document.getElementById('char-workspace').style.display = 'none';
         document.getElementById('tab-timeline').classList.add('active');
-        document.getElementById('tab-characters').classList.remove('active');
         renderTimeline();
       } else if (view === 'characters') {
-        document.getElementById('workspace').style.display = 'none';
-        document.getElementById('unsorted-tray').style.display = 'none';
-        document.getElementById('filter-bar').style.display = 'none';
         document.getElementById('char-workspace').style.display = 'flex';
-        document.getElementById('tab-timeline').classList.remove('active');
         document.getElementById('tab-characters').classList.add('active');
-        renderCharacterPanel();
+        renderEntityPanel('characters', characters, 'char-workspace', 'char-card');
+      } else if (view === 'worlds') {
+        document.getElementById('world-workspace').style.display = 'flex';
+        document.getElementById('tab-worlds').classList.add('active');
+        renderEntityPanel('worlds', worlds, 'world-workspace', 'world-card');
       }
     }
 
-    function renderCharacterPanel() {
-      const charWorkspace = document.getElementById('char-workspace');
-      charWorkspace.innerHTML = '';
+    // 共用的實體面板渲染函數 (支援角色與世界觀)
+    function renderEntityPanel(type, dataArray, containerId, cardClass) {
+      const workspace = document.getElementById(containerId);
+      workspace.innerHTML = '';
       
-      if (characters.length === 0) {
-        charWorkspace.innerHTML = '<div style="width:100%; text-align:center; color:#888; margin-top:30px;">尚無角色。點擊右下角「+」新增你的第一個角色！</div>';
+      if (dataArray.length === 0) {
+        let icon = type === 'characters' ? '👤 角色' : '🌍 世界觀';
+        workspace.innerHTML = `<div style="width:100%; text-align:center; color:#888; margin-top:30px;">尚無${icon}。點擊右下角「+」立刻新增！</div>`;
         return;
       }
 
-      characters.forEach(char => {
+      dataArray.forEach(item => {
         let div = document.createElement('div');
-        div.className = 'card char-card';
-        div.id = char.id;
+        div.className = `entity-card ${cardClass}`;
+        div.id = item.id;
+        let emoji = type === 'characters' ? '👤' : '🌍';
         div.innerHTML = `
           <div style="width:100%;">
-            <div class="char-card-title">👤 ${char.name}</div>
-            <div class="card-desc" style="text-align:center; margin:0;">${char.desc}</div>
+            <div class="entity-card-title">${emoji} ${item.name}</div>
+            <div class="card-desc" style="text-align:center; margin:0;">${item.desc}</div>
           </div>
         `;
-        div.onclick = (e) => handleCardClick(e, char.id);
-        charWorkspace.appendChild(div);
+        div.onclick = (e) => handleCardClick(e, item.id);
+        workspace.appendChild(div);
       });
     }
 
-    // 保留了完整下拉選單雙向抓取功能
     function updateDropdowns() {
       const groupSet = new Set();
       const charTagSet = new Set();
@@ -374,10 +412,7 @@
         (ev.charTags || []).forEach(t => charTagSet.add(t));
         (ev.groupTags || []).forEach(t => groupSet.add(t));
       });
-
-      characters.forEach(c => {
-        if(c.name) charTagSet.add(c.name);
-      });
+      characters.forEach(c => { if(c.name) charTagSet.add(c.name); });
 
       const charSelect = document.getElementById('char-filter');
       const groupSelect = document.getElementById('group-filter');
@@ -422,7 +457,6 @@
           `;
           div.onclick = (e) => handleCardClick(e, ev.id);
 
-          // 深度關聯篩選 (相容新版 charIds 陣列)
           let showChar = false;
           if (charFilter === "") {
             showChar = true;
@@ -460,8 +494,10 @@
       saveData(); switchView(currentView);
     }
 
-    function getEventData(id) {
-      return [...events.past, ...events.present, ...events.unsorted].find(ev => ev.id === id);
+    function getEntityData(id) {
+      if (currentView === 'timeline') return [...events.past, ...events.present, ...events.unsorted].find(ev => ev.id === id);
+      if (currentView === 'characters') return characters.find(c => c.id === id);
+      if (currentView === 'worlds') return worlds.find(w => w.id === id);
     }
 
     function handleCardClick(e, clickedId) {
@@ -484,7 +520,7 @@
     }
 
     function highlightCard(clickedId) {
-      document.querySelectorAll('.card').forEach(card => {
+      document.querySelectorAll('.card, .entity-card').forEach(card => {
         card.classList.add('dimmed'); card.classList.remove('active-card', 'linked-active');
       });
       const clickedCard = document.getElementById(clickedId);
@@ -512,8 +548,8 @@
     }
 
     document.body.onclick = function(e) {
-      if(e.target.closest('.card') || e.target.closest('#action-bar') || e.target.closest('.modal-overlay') || e.target.closest('.fab') || e.target.closest('#detail-page')) return;
-      document.querySelectorAll('.card').forEach(card => card.classList.remove('dimmed', 'active-card', 'linked-active'));
+      if(e.target.closest('.card') || e.target.closest('.entity-card') || e.target.closest('#action-bar') || e.target.closest('.modal-overlay') || e.target.closest('.fab') || e.target.closest('#detail-page')) return;
+      document.querySelectorAll('.card, .entity-card').forEach(card => card.classList.remove('dimmed', 'active-card', 'linked-active'));
       document.getElementById('action-bar').style.display = 'none';
       if(isLinkingMode) exitLinkingMode();
       selectedCardId = null;
@@ -522,8 +558,7 @@
     // --- 5. 細節內頁與筆記編輯系統 ---
     function openDetailPage() {
       if(!selectedCardId) return;
-      const isEvent = currentView === 'timeline';
-      const data = isEvent ? getEventData(selectedCardId) : characters.find(c => c.id === selectedCardId);
+      const data = getEntityData(selectedCardId);
       
       document.getElementById('dp-title').innerText = data.name || data.title;
       document.getElementById('dp-desc').innerText = data.desc || '無簡介';
@@ -533,25 +568,22 @@
       const loreEditorSection = document.getElementById('dp-lore-editor-section');
       const loreViewerSection = document.getElementById('dp-lore-viewer-section');
       
-      if (isEvent) {
+      if (currentView === 'timeline') {
         let charHTML = (data.charTags || []).map(t => `<span class="tag-badge tag-char" style="font-size:12px;">${t}</span>`).join('');
         let groupHTML = (data.groupTags || []).map(t => `<span class="tag-badge tag-group" style="font-size:12px;">${t}</span>`).join('');
         tagsContainer.innerHTML = charHTML + groupHTML;
         
-        // 進入事件頁面：開啟設定筆記編輯區
         loreViewerSection.style.display = 'none';
         loreEditorSection.style.display = 'block';
         
         const loreList = document.getElementById('dp-lore-list');
         loreList.innerHTML = '';
-        if (data.lores) {
-          data.lores.forEach(lore => addDetailLoreRow(lore));
-        }
+        if (data.lores) data.lores.forEach(lore => addDetailLoreRow(lore));
+
       } else {
         tagsContainer.innerHTML = '';
-        
-        // 進入角色頁面：開啟設定筆記展示區
         loreEditorSection.style.display = 'none';
+        
         const loreContent = document.getElementById('dp-lore-viewer-content');
         loreContent.innerHTML = '';
         let foundLores = false;
@@ -559,7 +591,9 @@
         const allEvents = [...events.past, ...events.present, ...events.unsorted];
         allEvents.forEach(ev => {
           (ev.lores || []).forEach(lore => {
-            if ((lore.charIds || []).includes(data.id)) {
+            let isRelated = (currentView === 'characters' && (lore.charIds || []).includes(data.id)) ||
+                            (currentView === 'worlds' && (lore.worldIds || []).includes(data.id));
+            if (isRelated) {
               foundLores = true;
               loreContent.innerHTML += `<div class="lore-display-item"><span class="lore-ref-tag">📖 ${ev.title}</span> ${lore.text}</div>`;
             }
@@ -574,32 +608,37 @@
       document.getElementById('action-bar').style.display = 'none';
     }
 
-    // 內頁動態新增一條設定筆記 (包含複選按鈕)
-    function addDetailLoreRow(lore = { charIds: [], text: '' }) {
+    // 動態新增一條設定筆記 (包含角色與世界觀的複選框)
+    function addDetailLoreRow(lore = { charIds: [], worldIds: [], text: '' }) {
       const container = document.getElementById('dp-lore-list');
       const row = document.createElement('div');
       row.className = 'lore-item-row';
       
-      // 生成角色複選框
-      let checkboxHTML = characters.map(c => {
+      let charCheckboxHTML = characters.length > 0 ? characters.map(c => {
         let checked = (lore.charIds || []).includes(c.id) ? 'checked' : '';
-        return `
-          <label class="lore-char-checkbox-label">
-            <input type="checkbox" value="${c.id}" class="lore-char-cb" ${checked}> ${c.name}
-          </label>
-        `;
-      }).join('');
+        return `<label class="lore-checkbox-label"><input type="checkbox" value="${c.id}" class="lore-char-cb" ${checked}> ${c.name}</label>`;
+      }).join('') : '<span class="lore-checkbox-title">尚未建立任何角色</span>';
+
+      let worldCheckboxHTML = worlds.length > 0 ? worlds.map(w => {
+        let checked = (lore.worldIds || []).includes(w.id) ? 'checked' : '';
+        return `<label class="lore-checkbox-label"><input type="checkbox" value="${w.id}" class="lore-world-cb" ${checked}> ${w.name}</label>`;
+      }).join('') : '<span class="lore-checkbox-title">尚未建立任何世界觀</span>';
 
       row.innerHTML = `
         <button class="lore-delete-btn" onclick="this.parentElement.remove()" title="刪除此筆記">✖</button>
-        <div style="margin-bottom:6px; color:#d2b4de; font-size:12px;">選擇關聯角色：</div>
-        <div style="display:flex; flex-wrap:wrap; margin-bottom:8px;">${checkboxHTML}</div>
+        <div class="lore-checkbox-group">
+          <div class="lore-checkbox-title">👤 關聯角色：</div>
+          <div style="display:flex; flex-wrap:wrap;">${charCheckboxHTML}</div>
+        </div>
+        <div class="lore-checkbox-group">
+          <div class="lore-checkbox-title" style="color:#e67e22;">🌍 關聯世界觀：</div>
+          <div style="display:flex; flex-wrap:wrap;">${worldCheckboxHTML}</div>
+        </div>
         <textarea class="input-field lore-text-input" style="height: 60px; margin-top:0;" placeholder="輸入設定細節...">${lore.text}</textarea>
       `;
       container.appendChild(row);
     }
 
-    // 儲存內頁的所有筆記變更
     function saveLoresFromDetail() {
       if (!selectedCardId || currentView !== 'timeline') return;
       const ev = getEventData(selectedCardId);
@@ -608,27 +647,22 @@
       const lores = [];
       document.querySelectorAll('#dp-lore-list .lore-item-row').forEach(row => {
         const charIds = Array.from(row.querySelectorAll('.lore-char-cb:checked')).map(cb => cb.value);
+        const worldIds = Array.from(row.querySelectorAll('.lore-world-cb:checked')).map(cb => cb.value);
         const text = row.querySelector('.lore-text-input').value.trim();
-        if (text) lores.push({ charIds: charIds, text: text });
+        if (text) lores.push({ charIds: charIds, worldIds: worldIds, text: text });
       });
       
       ev.lores = lores;
       saveData();
     }
 
-    // 手動點擊儲存按鈕的視覺回饋
     function manualSaveLores() {
       saveLoresFromDetail();
       const btn = document.getElementById('btn-save-lores');
-      btn.innerText = '✅ 已儲存';
-      btn.style.background = '#27ae60';
-      setTimeout(() => {
-        btn.innerText = '💾 儲存筆記變更';
-        btn.style.background = '#4a235a';
-      }, 2000);
+      btn.innerText = '✅ 已儲存'; btn.style.background = '#27ae60';
+      setTimeout(() => { btn.innerText = '💾 儲存筆記變更'; btn.style.background = '#4a235a'; }, 2000);
     }
 
-    // 離開細節頁面時，全自動存檔防呆
     function closeDetailPage() { 
       if(currentView === 'timeline') saveLoresFromDetail(); 
       document.getElementById('detail-page').style.display = 'none';
@@ -637,20 +671,23 @@
     
     function openFabAction() { 
       if (currentView === 'timeline') openEventModal(); 
-      else openCharModal(); 
+      else if (currentView === 'characters') openCharModal(); 
+      else openWorldModal();
     }
     
-    function openEditModal() { 
-      closeDetailPage(); // 關閉細節頁前會觸發自動存檔
-      if (currentView === 'timeline') openEventModal(true); 
-      else openCharModal(true); 
+    // 編輯 UX 優化：留在內頁，不關閉 Detail Page
+    function openEditModal(isEdit = false) { 
+      if (currentView === 'timeline') openEventModal(isEdit); 
+      else if (currentView === 'characters') openCharModal(isEdit); 
+      else openWorldModal(isEdit);
     }
 
+    // 關閉 Modal 時單純隱藏，不去動 Detail Page 狀態
     function closeModal() {
       document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
     }
 
-    // --- 6. 事件基本資料編輯 (移除筆記功能) ---
+    // --- 6. 各式編輯彈窗 ---
     function openEventModal(isEdit = false) {
       const modal = document.getElementById('event-modal');
       if (isEdit && selectedCardId) {
@@ -686,15 +723,19 @@
       if (editingId) {
         const ev = getEventData(editingId);
         ev.title = title; ev.charTags = charTags; ev.groupTags = groupTags; ev.desc = desc; ev.detail = detail; 
-        // 筆記 (lores) 現在在細節頁面獨立處理，所以這裡不需要覆蓋它
       } else {
         const newId = 'evt_' + Date.now();
         events.unsorted.push({ id: newId, title: title, charTags: charTags, groupTags: groupTags, desc: desc, detail: detail, lores: [] });
       }
-      saveData(); switchView(currentView); closeModal();
+      
+      // UX優化：判斷是否是從細節頁面打開的
+      if (document.getElementById('detail-page').style.display === 'flex') {
+        saveData(); renderTimeline(); openDetailPage(); closeModal();
+      } else {
+        saveData(); switchView(currentView); closeModal();
+      }
     }
 
-    // --- 7. 角色編輯邏輯 ---
     function openCharModal(isEdit = false) {
       const modal = document.getElementById('char-modal');
       if (isEdit && selectedCardId) {
@@ -725,7 +766,50 @@
       } else {
         characters.push({ id: 'char_' + Date.now(), name: name, desc: desc, detail: detail });
       }
-      saveData(); switchView(currentView); closeModal();
+
+      if (document.getElementById('detail-page').style.display === 'flex') {
+        saveData(); renderCharacterPanel(); openDetailPage(); closeModal();
+      } else {
+        saveData(); switchView(currentView); closeModal();
+      }
+    }
+
+    function openWorldModal(isEdit = false) {
+      const modal = document.getElementById('world-modal');
+      if (isEdit && selectedCardId) {
+        document.getElementById('world-modal-title').innerText = '編輯世界觀';
+        const world = worlds.find(w => w.id === selectedCardId);
+        document.getElementById('world-name').value = world.name;
+        document.getElementById('world-desc').value = world.desc;
+        document.getElementById('world-detail').value = world.detail;
+        editingId = selectedCardId;
+      } else {
+        document.getElementById('world-modal-title').innerText = '新增世界觀';
+        document.getElementById('world-name').value = '';
+        document.getElementById('world-desc').value = '';
+        document.getElementById('world-detail').value = '';
+        editingId = null;
+      }
+      modal.style.display = 'flex';
+    }
+
+    function saveWorld() {
+      const name = document.getElementById('world-name').value.trim() || '未命名設定';
+      const desc = document.getElementById('world-desc').value.trim();
+      const detail = document.getElementById('world-detail').value.trim();
+
+      if (editingId) {
+        const w = worlds.find(w => w.id === editingId);
+        w.name = name; w.desc = desc; w.detail = detail;
+      } else {
+        worlds.push({ id: 'world_' + Date.now(), name: name, desc: desc, detail: detail });
+      }
+
+      if (document.getElementById('detail-page').style.display === 'flex') {
+        saveData(); renderEntityPanel('worlds', worlds, 'world-workspace', 'world-card'); openDetailPage(); closeModal();
+      } else {
+        saveData(); switchView(currentView); closeModal();
+      }
     }
 
     function deleteItem() {
@@ -733,16 +817,18 @@
         if (currentView === 'timeline') {
           ['past', 'present', 'unsorted'].forEach(type => { events[type] = events[type].filter(ev => ev.id !== selectedCardId); });
           links = links.filter(l => l[0] !== selectedCardId && l[1] !== selectedCardId);
-        } else {
+        } else if (currentView === 'characters') {
           characters = characters.filter(c => c.id !== selectedCardId);
-          // 角色刪除時，自動從所有事件筆記的複選清單中移除他的 ID
           ['past', 'present', 'unsorted'].forEach(type => {
             events[type].forEach(ev => {
-              if (ev.lores) {
-                ev.lores.forEach(lore => {
-                  if (lore.charIds) lore.charIds = lore.charIds.filter(id => id !== selectedCardId);
-                });
-              }
+              if (ev.lores) ev.lores.forEach(lore => { if (lore.charIds) lore.charIds = lore.charIds.filter(id => id !== selectedCardId); });
+            });
+          });
+        } else if (currentView === 'worlds') {
+          worlds = worlds.filter(w => w.id !== selectedCardId);
+          ['past', 'present', 'unsorted'].forEach(type => {
+            events[type].forEach(ev => {
+              if (ev.lores) ev.lores.forEach(lore => { if (lore.worldIds) lore.worldIds = lore.worldIds.filter(id => id !== selectedCardId); });
             });
           });
         }
@@ -751,13 +837,14 @@
     }
 
     function exportData() {
-      const dataToSave = JSON.stringify({ events: events, characters: characters, links: links });
+      const dataToSave = JSON.stringify({ events: events, characters: characters, worlds: worlds, links: links });
       const blob = new Blob([dataToSave], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = `我的故事大綱備份_${new Date().toLocaleDateString()}.json`;
       a.click(); URL.revokeObjectURL(url);
     }
+    
     function importData(event) {
       const file = event.target.files[0]; if (!file) return;
       const reader = new FileReader();
@@ -765,7 +852,7 @@
         try {
           const imported = JSON.parse(e.target.result);
           if(imported.events) {
-            events = imported.events; characters = imported.characters || []; links = imported.links || [];
+            events = imported.events; characters = imported.characters || []; worlds = imported.worlds || []; links = imported.links || [];
             saveData(); switchView(currentView); alert("成功匯入故事資料並已同步至雲端！");
           }
         } catch(err) { alert("讀取檔案失敗！"); }
