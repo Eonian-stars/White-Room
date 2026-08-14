@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>故事整理工具：穩定優化版</title>
+  <title>故事整理工具：穩定優化版 (角色視角支援)</title>
   
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -21,6 +21,7 @@
       --group-tag-bg: #27ae60;
       --world-tag-bg: #d35400;
       --lore-color: #9b59b6;
+      --pov-color: #3498db; /* 新增 POV 專用色 */
     }
     
     html, body {
@@ -97,12 +98,18 @@
     .btn-group { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
     .btn-group button { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;}
     
+    /* 筆記與視角 CSS */
     .lore-item-row { background: #222; padding: 10px; border-radius: 8px; border-left: 3px solid var(--lore-color); margin-top: 10px; position: relative;}
     .lore-delete-btn { position: absolute; top: 5px; right: 5px; background: transparent; color: #e74c3c; border: none; font-size: 16px; cursor: pointer; }
     .lore-checkbox-group { margin-bottom: 6px; padding: 5px; background: rgba(0,0,0,0.2); border-radius: 4px; }
     .lore-checkbox-title { font-size: 11px; color: #aaa; margin-bottom: 4px; }
     .lore-checkbox-label { display: inline-flex; align-items: center; margin-right: 10px; margin-bottom: 4px; font-size: 12px; color: #ccc; cursor: pointer;}
     .lore-checkbox-label input { margin-right: 4px; cursor: pointer; }
+
+    /* 【新增】角色專屬視角 CSS */
+    .dp-pov-section { background: #1a252f; padding: 15px; border-radius: 8px; border: 1px solid #2980b9; margin-top: 20px; }
+    .dp-pov-item { background: #222; padding: 10px; border-radius: 8px; border-left: 3px solid var(--pov-color); margin-top: 10px; }
+    .dp-pov-title { font-size: 12px; color: #85c1e9; margin-bottom: 5px; font-weight: bold; }
 
     #detail-page { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 400; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch;}
     .dp-header { padding: 15px 20px; background: #1e1e1e; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 410;}
@@ -182,7 +189,6 @@
   <div id="action-bar">
     <button class="action-btn" onclick="openDetailPage()">📖 細節</button>
     <button class="action-btn" id="btn-link" onclick="toggleLinkMode()">🔗 連結</button>
-    <!-- 【修復1】加入 true 參數，確保點擊會進入編輯狀態 -->
     <button class="action-btn" onclick="openEditModal(true)">✏️ 編輯基本資料</button>
     <button class="action-btn" style="background:#cc0000;" onclick="deleteItem()">🗑️</button>
   </div>
@@ -240,7 +246,6 @@
   <div id="detail-page">
     <div class="dp-header">
       <button class="dp-close" onclick="closeDetailPage()">← 返回</button>
-      <!-- 【修復1】加入 true 參數，確保點擊會進入編輯狀態 -->
       <button class="action-btn" id="btn-edit-detail" onclick="openEditModal(true)">✏️ 編輯基本資料</button>
     </div>
     <div class="dp-body">
@@ -249,6 +254,13 @@
       <div class="dp-desc" id="dp-desc"></div>
       <div class="dp-content" id="dp-content"></div>
       
+      <!-- 【新增】事件模式專用：各角色視角/動機區塊 -->
+      <div class="dp-pov-section" id="dp-pov-section" style="display:none;">
+        <div style="font-size: 14px; color: #85c1e9; font-weight: bold; margin-bottom:5px;">👁️ 角色專屬視角 / 心理活動</div>
+        <div style="font-size: 11px; color: #aaa; margin-bottom:10px;">(根據本事件「參與角色」標籤自動產生)</div>
+        <div id="dp-pov-list"></div>
+      </div>
+
       <!-- 事件模式專用：可編輯的設定筆記區塊 -->
       <div class="dp-lore-section" id="dp-lore-editor-section" style="display:none;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:10px;">
@@ -256,7 +268,15 @@
           <button onclick="addDetailLoreRow()" style="background:#9b59b6; color:white; border:none; border-radius:4px; padding:4px 8px; font-size:12px; cursor:pointer;">+ 新增筆記</button>
         </div>
         <div id="dp-lore-list"></div>
-        <button id="btn-save-lores" onclick="manualSaveLores()" style="width:100%; background:#4a235a; color:white; border:none; border-radius:6px; padding:8px; margin-top:10px; font-weight:bold; cursor:pointer; transition: 0.3s;">💾 儲存筆記變更</button>
+      </div>
+
+      <!-- 儲存按鈕 (合併存筆記與POV) -->
+      <button id="btn-save-lores" onclick="manualSaveLores()" style="display:none; width:100%; background:#4a235a; color:white; border:none; border-radius:6px; padding:8px; margin-top:20px; font-weight:bold; cursor:pointer; transition: 0.3s;">💾 儲存筆記與視角變更</button>
+
+      <!-- 【新增】角色模式專用：歷程視角展示區塊 -->
+      <div class="dp-pov-section" id="dp-pov-viewer-section" style="display:none;">
+        <div style="font-size: 14px; color: #85c1e9; font-weight: bold; margin-bottom:10px;">👁️ 角色在各事件的專屬視角</div>
+        <div id="dp-pov-viewer-content"></div>
       </div>
 
       <!-- 角色/世界觀模式專用：唯讀的設定展示區塊 -->
@@ -268,7 +288,6 @@
   </div>
 
   <script>
-    // 【新增】安全防護：防跳脫字元處理函數 (XSS Protection)
     function escapeHTML(str) {
       if (!str) return '';
       return String(str)
@@ -316,7 +335,8 @@
                   if (l.charId && !cIds.includes(l.charId)) cIds.push(l.charId);
                   return { charIds: cIds, worldIds: wIds, text: l.text };
                 });
-                return { ...ev, lores: lores, lore: null }; 
+                // 【修改】載入資料時加入 povs 物件
+                return { ...ev, lores: lores, povs: ev.povs || {}, lore: null }; 
               });
             });
           }
@@ -326,7 +346,7 @@
         } else {
           characters = [ { id: 'c_anas', name: '阿那斯', desc: '擁有特殊命運的女孩。', detail: '' } ];
           worlds = [ { id: 'w_magic', name: '靈魂魔法', desc: '古老的禁忌。', detail: '' } ];
-          events.past = [{ id: 'p1', title: '王宮事件', desc: '阿那斯被帶回王宮。', detail: '', charTags: ['阿那斯'], groupTags: [], lores: [{charIds: ['c_anas'], worldIds: [], text: '阿那斯在此學會了宮廷禮儀。'}] }];
+          events.past = [{ id: 'p1', title: '王宮事件', desc: '阿那斯被帶回王宮。', detail: '', charTags: ['阿那斯'], groupTags: [], lores: [], povs: {'阿那斯': '她其實想找機會逃跑。'} }];
           saveData(); 
         }
         syncStatus.innerText = '☁️ 雲端已同步'; syncStatus.style.color = '#27ae60';
@@ -380,19 +400,16 @@
     function renderEntityPanel(type, dataArray, containerId, cardClass) {
       const workspace = document.getElementById(containerId);
       workspace.innerHTML = '';
-      
       if (dataArray.length === 0) {
         let icon = type === 'characters' ? '👤 角色' : '🌍 世界觀';
         workspace.innerHTML = `<div style="width:100%; text-align:center; color:#888; margin-top:30px;">尚無${icon}。點擊右下角「+」立刻新增！</div>`;
         return;
       }
-
       dataArray.forEach(item => {
         let div = document.createElement('div');
         div.className = `entity-card ${cardClass}`;
         div.id = item.id;
         let emoji = type === 'characters' ? '👤' : '🌍';
-        // 【修復】套用 XSS 防護
         div.innerHTML = `
           <div style="width:100%;">
             <div class="entity-card-title">${emoji} ${escapeHTML(item.name)}</div>
@@ -422,7 +439,6 @@
       charSelect.innerHTML = '<option value="">👤 參與角色過濾 (全部)</option>';
       groupSelect.innerHTML = '<option value="">📚 群組/章節 (全部)</option>';
 
-      // 【修復】套用 XSS 防護
       Array.from(charTagSet).sort().forEach(tag => { charSelect.innerHTML += `<option value="${escapeHTML(tag)}">${escapeHTML(tag)}</option>`; });
       Array.from(groupSet).sort().forEach(tag => { groupSelect.innerHTML += `<option value="${escapeHTML(tag)}">${escapeHTML(tag)}</option>`; });
 
@@ -448,7 +464,6 @@
           div.className = `card ${type}-card`;
           div.id = ev.id;
           
-          // 【修復】套用 XSS 防護
           let charHTML = (ev.charTags || []).map(t => `<span class="tag-badge tag-char">${escapeHTML(t)}</span>`).join('');
           let groupHTML = (ev.groupTags || []).map(t => `<span class="tag-badge tag-group">${escapeHTML(t)}</span>`).join('');
           
@@ -487,19 +502,17 @@
       new Sortable(document.getElementById('col-unsorted'), options);
     }
 
-    // 【修復2】拖曳卡片後，保存當前的選取狀態與操作選單
     function syncDataFromDOM() {
       const allEvents = [...events.past, ...events.present, ...events.unsorted];
       ['past', 'present', 'unsorted'].forEach(type => {
         const ids = Array.from(document.getElementById(`col-${type}`).children).map(el => el.id);
-        events[type] = ids.map(id => allEvents.find(e => e.id === id)).filter(Boolean); // 加入 filter(Boolean) 防呆
+        events[type] = ids.map(id => allEvents.find(e => e.id === id)).filter(Boolean); 
       });
       saveData(); 
       
       let tempSelectedId = selectedCardId; 
       switchView(currentView);
       
-      // 畫面重繪後，若有暫存的卡片則恢復選取狀態與選單
       if (tempSelectedId) {
         selectedCardId = tempSelectedId;
         highlightCard(selectedCardId);
@@ -513,7 +526,6 @@
       if (currentView === 'worlds') return worlds.find(w => w.id === id);
     }
 
-    // 【修復5】修復連結模式退出時卡片的選取顯示問題
     function handleCardClick(e, clickedId) {
       e.stopPropagation(); 
       if (isLinkingMode && currentView === 'timeline') {
@@ -523,8 +535,8 @@
           saveData();
         }
         exitLinkingMode(); 
-        highlightCard(selectedCardId); // 保持高光在原來的卡片上
-        document.getElementById('action-bar').style.display = 'flex'; // 重新喚出操作列
+        highlightCard(selectedCardId);
+        document.getElementById('action-bar').style.display = 'flex'; 
         return;
       }
       
@@ -576,24 +588,45 @@
       if(!selectedCardId) return;
       const data = getEntityData(selectedCardId);
       
-      // innerText 天生防禦 HTML 注入
       document.getElementById('dp-title').innerText = data.name || data.title;
       document.getElementById('dp-desc').innerText = data.desc || '無簡介';
       document.getElementById('dp-content').innerText = data.detail || '尚未填寫詳細內容...';
       
       const tagsContainer = document.getElementById('dp-tags');
       const loreEditorSection = document.getElementById('dp-lore-editor-section');
+      const povSection = document.getElementById('dp-pov-section');
       const loreViewerSection = document.getElementById('dp-lore-viewer-section');
+      const povViewerSection = document.getElementById('dp-pov-viewer-section');
+      const saveBtn = document.getElementById('btn-save-lores');
       
       if (currentView === 'timeline') {
-        // 【修復】套用 XSS 防護
         let charHTML = (data.charTags || []).map(t => `<span class="tag-badge tag-char" style="font-size:12px;">${escapeHTML(t)}</span>`).join('');
         let groupHTML = (data.groupTags || []).map(t => `<span class="tag-badge tag-group" style="font-size:12px;">${escapeHTML(t)}</span>`).join('');
         tagsContainer.innerHTML = charHTML + groupHTML;
         
         loreViewerSection.style.display = 'none';
+        povViewerSection.style.display = 'none';
         loreEditorSection.style.display = 'block';
+        saveBtn.style.display = 'block';
         
+        // 【新增】生成該事件中，各個參與角色的專屬視角輸入框
+        const povList = document.getElementById('dp-pov-list');
+        povList.innerHTML = '';
+        if (data.charTags && data.charTags.length > 0) {
+          data.charTags.forEach(tag => {
+            let povText = (data.povs && data.povs[tag]) ? data.povs[tag] : '';
+            povList.innerHTML += `
+              <div class="dp-pov-item">
+                <div class="dp-pov-title">👤 【${escapeHTML(tag)}】的視角 / 心理活動</div>
+                <textarea class="input-field pov-text-input" data-char="${escapeHTML(tag)}" style="height: 60px; margin-top:0;" placeholder="寫下 ${escapeHTML(tag)} 在此事件中的想法或隱藏動機...">${escapeHTML(povText)}</textarea>
+              </div>
+            `;
+          });
+          povSection.style.display = 'block';
+        } else {
+          povSection.style.display = 'none';
+        }
+
         const loreList = document.getElementById('dp-lore-list');
         loreList.innerHTML = '';
         if (data.lores) data.lores.forEach(lore => addDetailLoreRow(lore));
@@ -601,19 +634,47 @@
       } else {
         tagsContainer.innerHTML = '';
         loreEditorSection.style.display = 'none';
+        povSection.style.display = 'none';
+        saveBtn.style.display = 'none';
         
+        const allEvents = [...events.past, ...events.present, ...events.unsorted];
+        
+        // 【新增】角色專用的 POV 讀取 (Excel 體驗核心)
+        if (currentView === 'characters') {
+          const povViewerContent = document.getElementById('dp-pov-viewer-content');
+          povViewerContent.innerHTML = '';
+          let foundPovs = false;
+          
+          allEvents.forEach(ev => {
+            // 使用角色的 name 來比對，因為我們 povs 存的 key 是 charTags 的字串
+            if (ev.povs && ev.povs[data.name]) {
+               foundPovs = true;
+               povViewerContent.innerHTML += `
+                 <div class="lore-display-item" style="border-left: 3px solid var(--pov-color); padding-left:10px; margin-bottom:12px;">
+                   <div style="margin-bottom:5px;"><span class="lore-ref-tag" style="background:var(--pov-color); color:white;">📖 ${escapeHTML(ev.title)}</span></div>
+                   <div style="white-space: pre-wrap; font-size: 13px; color: #ddd;">${escapeHTML(ev.povs[data.name])}</div>
+                 </div>
+               `;
+            }
+          });
+          
+          if (foundPovs) povViewerSection.style.display = 'block';
+          else povViewerSection.style.display = 'none';
+        } else {
+          povViewerSection.style.display = 'none';
+        }
+
+        // 讀取共通設定筆記 (Lores)
         const loreContent = document.getElementById('dp-lore-viewer-content');
         loreContent.innerHTML = '';
         let foundLores = false;
         
-        const allEvents = [...events.past, ...events.present, ...events.unsorted];
         allEvents.forEach(ev => {
           (ev.lores || []).forEach(lore => {
             let isRelated = (currentView === 'characters' && (lore.charIds || []).includes(data.id)) ||
                             (currentView === 'worlds' && (lore.worldIds || []).includes(data.id));
             if (isRelated) {
               foundLores = true;
-              // 【修復】套用 XSS 防護
               loreContent.innerHTML += `<div class="lore-display-item"><span class="lore-ref-tag">📖 ${escapeHTML(ev.title)}</span> ${escapeHTML(lore.text)}</div>`;
             }
           });
@@ -632,7 +693,6 @@
       const row = document.createElement('div');
       row.className = 'lore-item-row';
       
-      // 【修復】套用 XSS 防護
       let charCheckboxHTML = characters.length > 0 ? characters.map(c => {
         let checked = (lore.charIds || []).includes(c.id) ? 'checked' : '';
         return `<label class="lore-checkbox-label"><input type="checkbox" value="${escapeHTML(c.id)}" class="lore-char-cb" ${checked}> ${escapeHTML(c.name)}</label>`;
@@ -663,6 +723,7 @@
       const ev = getEntityData(selectedCardId); 
       if(!ev) return;
       
+      // 1. 儲存共通設定 (Lores)
       const lores = [];
       document.querySelectorAll('#dp-lore-list .lore-item-row').forEach(row => {
         const charIds = Array.from(row.querySelectorAll('.lore-char-cb:checked')).map(cb => cb.value);
@@ -670,8 +731,22 @@
         const text = row.querySelector('.lore-text-input').value.trim();
         if (text) lores.push({ charIds: charIds, worldIds: worldIds, text: text });
       });
-      
       ev.lores = lores;
+
+      // 2. 【新增】儲存各角色專屬視角 (POVs)
+      const currentPovs = ev.povs || {};
+      const newPovs = { ...currentPovs }; // 保留原本可能有但未顯示的資料
+      document.querySelectorAll('#dp-pov-list .pov-text-input').forEach(input => {
+         const charName = input.getAttribute('data-char');
+         const text = input.value.trim();
+         if (text) {
+           newPovs[charName] = text;
+         } else {
+           delete newPovs[charName]; // 空白則清除
+         }
+      });
+      ev.povs = newPovs;
+      
       saveData();
     }
 
@@ -679,7 +754,7 @@
       saveLoresFromDetail();
       const btn = document.getElementById('btn-save-lores');
       btn.innerText = '✅ 已儲存'; btn.style.background = '#27ae60';
-      setTimeout(() => { btn.innerText = '💾 儲存筆記變更'; btn.style.background = '#4a235a'; }, 2000);
+      setTimeout(() => { btn.innerText = '💾 儲存筆記與視角變更'; btn.style.background = '#4a235a'; }, 2000);
     }
 
     function closeDetailPage() { 
@@ -694,13 +769,10 @@
       else openWorldModal();
     }
     
-    // 【修復3】避免開啟編輯彈窗時洗掉尚未儲存的設定筆記
     function openEditModal(isEdit = false) { 
-      // 確保在細節頁面開啟編輯前，先將未儲存的筆記寫入記憶體
       if (currentView === 'timeline' && document.getElementById('detail-page').style.display === 'flex') {
         saveLoresFromDetail();
       }
-
       if (currentView === 'timeline') openEventModal(isEdit); 
       else if (currentView === 'characters') openCharModal(isEdit); 
       else openWorldModal(isEdit);
@@ -747,7 +819,7 @@
         ev.title = title; ev.charTags = charTags; ev.groupTags = groupTags; ev.desc = desc; ev.detail = detail; 
       } else {
         const newId = 'evt_' + Date.now();
-        events.unsorted.push({ id: newId, title: title, charTags: charTags, groupTags: groupTags, desc: desc, detail: detail, lores: [] });
+        events.unsorted.push({ id: newId, title: title, charTags: charTags, groupTags: groupTags, desc: desc, detail: detail, lores: [], povs: {} });
       }
       
       if (document.getElementById('detail-page').style.display === 'flex') {
@@ -866,7 +938,6 @@
       a.click(); URL.revokeObjectURL(url);
     }
     
-    // 【修復4】加入匯入功能防呆機制，避免缺少陣列導致崩潰
     function importData(event) {
       const file = event.target.files[0]; if (!file) return;
       const reader = new FileReader();
@@ -874,7 +945,6 @@
         try {
           const imported = JSON.parse(e.target.result);
           if(imported.events || imported.characters || imported.worlds) {
-            // 確保匯入的物件存在基礎結構，不會因為匯出時部分為空而導致 undefined
             events = {
               past: (imported.events && imported.events.past) || [],
               present: (imported.events && imported.events.present) || [],
@@ -889,7 +959,6 @@
         } catch(err) { 
           alert("讀取檔案失敗！"); 
         }
-        // 清除 input，確保下次選同一個檔案仍能觸發 change 事件
         event.target.value = '';
       };
       reader.readAsText(file);
